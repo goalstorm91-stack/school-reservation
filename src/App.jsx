@@ -541,6 +541,9 @@ export default function App() {
   var [delConfirm,setDelConfirm] = useState(null);
   var [notifs,setNotifs]       = useState([]);
   var [notiPanel,setNotiPanel] = useState(false);
+  var [editEmail,setEditEmail] = useState("");
+  var [savingEmail,setSavingEmail] = useState(false);
+  var [showMoreDates,setShowMoreDates] = useState(false);
 
   // ── DB에서 데이터 불러오기 ──
   function loadAll(){
@@ -563,7 +566,7 @@ export default function App() {
   }
 
   useEffect(function(){
-    if(user) loadAll();
+    if(user) { loadAll(); setEditEmail(user.email||""); }
   }, [user]);
 
   // 알림 30초마다 자동 갱신
@@ -767,6 +770,18 @@ export default function App() {
       .catch(function(e){ notify("오류: "+e.message,"err"); });
   }
 
+  function saveEmail(){
+    if(!editEmail.trim()) return notify("이메일을 입력해주세요","err");
+    setSavingEmail(true);
+    sb.patch("users","login_id=eq."+user.login_id,{email:editEmail.trim()})
+      .then(function(){
+        setUser(function(u){ return Object.assign({},u,{email:editEmail.trim()}); });
+        setSavingEmail(false);
+        notify("이메일이 저장됐어요! 이제 알림을 받을 수 있어요","ok");
+      })
+      .catch(function(e){ setSavingEmail(false); notify("저장 오류: "+e.message,"err"); });
+  }
+
   function processApproval(id, status, target){
     // 1. 앱 내 알림
     var msg = status==="승인"
@@ -774,22 +789,25 @@ export default function App() {
       : target.facility_name+" "+target.time_slot+" 예약이 거절됐어요.";
     addNotif(target.teacher_name, msg, status==="승인"?"success":"error", id);
 
-    // 2. 이메일 발송 — users 테이블에서 이메일 조회 후 발송
-    sb.get("users","select=email&name=eq."+encodeURIComponent(target.teacher_name))
+    // 2. 이메일 발송 — users 테이블에서 이메일 조회
+    console.log("이메일 조회 시작:", target.teacher_name);
+    sb.get("users","select=email,name&name=eq."+encodeURIComponent(target.teacher_name))
       .then(function(rows){
+        console.log("users 조회 결과:", rows);
         var email = rows&&rows[0]&&rows[0].email;
+        console.log("발송할 이메일:", email);
         if(email){
           sendEmail(email, target.teacher_name, target.facility_name, target.date, target.time_slot, target.purpose, status)
-            .then(function(){ notify("이메일 발송 완료!", "ok"); });
+            .then(function(){ notify("이메일 발송 완료! 📧","ok"); });
         } else {
-          console.log("이메일 주소 없음:", target.teacher_name);
+          notify("이메일 미등록 — 앱 알림만 전송됨","ok");
         }
       })
       .catch(function(e){ console.error("이메일 조회 오류:", e); });
   }
 
-  var allItems = facList.concat(itemList);
-  var filtered = cat==="전체"?allItems:allItems.filter(function(i){ return i.category===cat; });
+  var allItems = itemList; // 교구·기기만 (특별실 제외)
+  var filtered = cat==="전체" ? allItems : allItems.filter(function(i){ return i.category===cat; });
   var todayStr = fmtDate(today,0);
   var todayR   = res.filter(function(r){ return r.date===todayStr; });
   var myR      = res.filter(function(r){ return r.teacher_name===user.name; });
@@ -999,7 +1017,7 @@ export default function App() {
         {!loadingData&&tab==="items"&&(
           <div style={{padding:"22px 16px"}}>
             <div style={{display:"flex",gap:8,marginBottom:20,overflowX:"auto",paddingBottom:2}}>
-              {["전체","특별실","교구","공용기기"].map(function(c){ return <button key={c} onClick={function(){ setCat(c); }} style={{background:cat===c?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",color:cat===c?"white":"#64748b",border:"none",borderRadius:20,padding:"8px 18px",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",boxShadow:cat===c?"0 4px 14px rgba(99,102,241,.38)":"0 2px 6px rgba(0,0,0,.07)",flexShrink:0}}>{c}</button>; })}
+              {["전체","교구","공용기기"].map(function(c){ return <button key={c} onClick={function(){ setCat(c); }} style={{background:cat===c?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",color:cat===c?"white":"#64748b",border:"none",borderRadius:20,padding:"8px 18px",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",boxShadow:cat===c?"0 4px 14px rgba(99,102,241,.38)":"0 2px 6px rgba(0,0,0,.07)",flexShrink:0}}>{c}</button>; })}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               {filtered.map(function(item){ return <div key={item.id} onClick={function(){ setModal(item); setStep(0); }} style={{background:"white",borderRadius:20,padding:"18px 15px",cursor:"pointer",boxShadow:"0 2px 10px rgba(0,0,0,.06)",borderTop:"4px solid "+item.color}}>
@@ -1022,38 +1040,22 @@ export default function App() {
               <div style={{flex:1,minWidth:0}}>
                 <div style={{color:"white",fontWeight:900,fontSize:17}}>{user.name} {user.role==="admin"?"관리자":"선생님"}</div>
                 <div style={{color:"rgba(255,255,255,.7)",fontSize:12,marginTop:3}}>{user.subject} · 예약 {myR.length}건</div>
-                <div style={{color:"rgba(255,255,255,.6)",fontSize:11,marginTop:3}}>{user.email||"이메일 미등록"}</div>
+                <div style={{color:"rgba(255,255,255,.55)",fontSize:11,marginTop:3}}>{user.email||"이메일 미등록"}</div>
               </div>
             </div>
-            {/* 이메일 등록/수정 */}
-            {(function(){
-              var [editEmail,setEditEmail]=useState(user.email||"");
-              var [saving,setSaving]=useState(false);
-              function saveEmail(){
-                if(!editEmail.trim()) return;
-                setSaving(true);
-                sb.patch("users","login_id=eq."+user.login_id,{email:editEmail.trim()})
-                  .then(function(){
-                    setUser(function(u){ return Object.assign({},u,{email:editEmail.trim()}); });
-                    setSaving(false);
-                    notify("이메일이 저장됐어요! 📧","ok");
-                  })
-                  .catch(function(){ setSaving(false); notify("저장 오류","err"); });
-              }
-              return (
-                <div style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:18,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-                  <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>📧 알림 이메일 주소</label>
-                  <div style={{display:"flex",gap:8}}>
-                    <input type="email" value={editEmail} onChange={function(e){setEditEmail(e.target.value);}} placeholder="이메일을 입력하세요"
-                      style={{flex:1,background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"sans-serif",color:"#1e293b"}}/>
-                    <button onClick={saveEmail} disabled={saving} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,cursor:"pointer",flexShrink:0}}>
-                      {saving?"저장 중...":"저장"}
-                    </button>
-                  </div>
-                  <p style={{fontSize:11,color:"#94a3b8",margin:"6px 0 0"}}>예약 승인·거절 시 이 이메일로 알림이 발송돼요</p>
-                </div>
-              );
-            })()}
+
+            {/* 이메일 등록·수정 */}
+            <div style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:18,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>📧 알림 이메일 주소</label>
+              <div style={{display:"flex",gap:8}}>
+                <input type="email" value={editEmail} onChange={function(e){setEditEmail(e.target.value);}} placeholder="예: teacher@school.kr"
+                  style={{flex:1,background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"sans-serif",color:"#1e293b"}}/>
+                <button onClick={saveEmail} disabled={savingEmail} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,cursor:"pointer",flexShrink:0,opacity:savingEmail?0.7:1}}>
+                  {savingEmail?"저장 중...":"저장"}
+                </button>
+              </div>
+              <p style={{fontSize:11,color:"#94a3b8",margin:"6px 0 0"}}>예약 승인·거절 시 이 이메일로 알림이 발송돼요</p>
+            </div>
             <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 16px"}}>📋 내 예약 목록</h2>
             {myR.length===0
               ?<div style={{textAlign:"center",padding:"52px 0",color:"#94a3b8",background:"white",borderRadius:20,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}><div style={{fontSize:42,marginBottom:12}}>📭</div><div style={{fontSize:14,fontWeight:600}}>예약 내역이 없어요</div></div>
@@ -1225,7 +1227,7 @@ export default function App() {
 
       {/* 예약 모달 */}
       {modal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.55)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){ if(e.target===e.currentTarget){setModal(null);setStep(0);} }}>
+        <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.55)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){ if(e.target===e.currentTarget){setModal(null);setStep(0);setShowMoreDates(false);} }}>
           <div style={{background:"white",borderRadius:"26px 26px 0 0",padding:"28px 24px 44px",width:"100%",maxWidth:430,animation:"slideUp .32s ease",maxHeight:"88vh",overflowY:"auto"}}>
             <div style={{width:42,height:5,background:"#e2e8f0",borderRadius:99,margin:"0 auto 26px"}}/>
             {step===0&&(
@@ -1238,14 +1240,23 @@ export default function App() {
                   </div>
                 </div>
                 <p style={{fontSize:13,fontWeight:700,margin:"0 0 11px",color:"#374151"}}>📅 날짜 선택</p>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:22}}>
-                  {[0,1,2,3,4].map(function(off){
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:8}}>
+                  {Array.from({length: showMoreDates?30:7}, function(_,off){
                     var d=fmtDate(today,off), sel=book.date===d;
-                    return <button key={off} onClick={function(){ setBook(function(b){ return Object.assign({},b,{date:d}); }); }} style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",color:sel?"white":"#374151",border:sel?"none":"1.5px solid #e8ecf0",borderRadius:14,padding:"11px 4px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                      {d.split("(")[0]}<br/><span style={{fontSize:10}}>{("("+((d.match(/\((.)\)/)||["",""])[1])+")")}</span>
-                    </button>;
+                    var dayD = new Date(today); dayD.setDate(dayD.getDate()+off);
+                    var isWeekend = dayD.getDay()===0||dayD.getDay()===6;
+                    return (
+                      <button key={off} onClick={function(){ setBook(function(b){ return Object.assign({},b,{date:d}); }); }}
+                        style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",color:sel?"white":isWeekend?"#ef4444":"#374151",border:sel?"none":"1.5px solid #e8ecf0",borderRadius:14,padding:"11px 4px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        {d.split("(")[0]}<br/><span style={{fontSize:10}}>{("("+((d.match(/\((.)\)/)||["",""])[1])+")")}</span>
+                      </button>
+                    );
                   })}
                 </div>
+                <button onClick={function(){ setShowMoreDates(function(v){ return !v; }); }}
+                  style={{width:"100%",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:12,padding:"9px",fontSize:12,fontWeight:700,color:"#6366f1",cursor:"pointer",marginBottom:22,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  {showMoreDates ? "▲ 접기" : "▼ 더보기 (한 달 전체 보기)"}
+                </button>
                 <p style={{fontSize:13,fontWeight:700,margin:"0 0 11px",color:"#374151"}}>🕐 교시 선택</p>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:24}}>
                   {TIME_SLOTS.map(function(t){
