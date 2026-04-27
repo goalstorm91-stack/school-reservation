@@ -652,11 +652,110 @@ export default function App() {
           </div>
         )}
 
+  function approveRes(id, status) {
+    sb.patch("reservations","id=eq."+id,{status:status})
+      .then(function(){
+        setRes(function(v){ return v.map(function(r){ return r.id===id ? Object.assign({},r,{status:status}) : r; }); });
+        notify(status==="승인" ? "예약이 승인됐어요! ✅" : "예약이 거절됐어요", status==="승인"?"ok":"err");
+      })
+      .catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
         {/* ─ 관리 ─ */}
         {!loadingData&&tab==="manage"&&(
           <div style={{padding:"22px 16px"}}>
+
+            {/* 승인 대기 섹션 */}
+            <div style={{background:"linear-gradient(135deg,#d97706,#f59e0b)",borderRadius:18,padding:"16px 18px",marginBottom:6,display:"flex",gap:12,alignItems:"center"}}>
+              <div style={{fontSize:26}}>📋</div>
+              <div style={{flex:1}}>
+                <div style={{color:"white",fontWeight:900,fontSize:15}}>예약 승인 관리</div>
+                <div style={{color:"rgba(255,255,255,.75)",fontSize:12,marginTop:2}}>대기 중인 예약을 승인하거나 거절하세요</div>
+              </div>
+              <div style={{background:"rgba(255,255,255,.25)",borderRadius:99,padding:"4px 12px",color:"white",fontWeight:900,fontSize:14}}>
+                {res.filter(function(r){ return r.status==="대기"; }).length}건
+              </div>
+            </div>
+
+            {/* 승인 필터 탭 */}
+            {(function(){
+              var pendingR = res.filter(function(r){ return r.status==="대기"; });
+              var approvedR = res.filter(function(r){ return r.status==="승인"; });
+              var rejectedR = res.filter(function(r){ return r.status==="거절"; });
+              return (
+                <div>
+                  <div style={{display:"flex",gap:8,marginBottom:16,marginTop:12}}>
+                    {[["전체 예약",res.length,"#6366f1"],["대기",pendingR.length,"#d97706"],["승인",approvedR.length,"#16a34a"],["거절",rejectedR.length,"#ef4444"]].map(function(item){
+                      return (
+                        <div key={item[0]} style={{flex:1,background:"white",borderRadius:12,padding:"10px 6px",textAlign:"center",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                          <div style={{fontSize:18,fontWeight:900,color:item[2]}}>{item[1]}</div>
+                          <div style={{fontSize:10,color:"#94a3b8",marginTop:2,fontWeight:600}}>{item[0]}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 대기 중인 예약 목록 */}
+                  <h2 style={{fontSize:14,fontWeight:800,margin:"0 0 12px",color:"#374151"}}>⏳ 대기 중인 예약</h2>
+                  {pendingR.length===0
+                    ? <div style={{background:"white",borderRadius:16,padding:"28px",textAlign:"center",color:"#94a3b8",marginBottom:24,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                        <div style={{fontSize:32,marginBottom:8}}>✅</div>
+                        <div style={{fontSize:13,fontWeight:600}}>대기 중인 예약이 없어요</div>
+                      </div>
+                    : pendingR.map(function(r){
+                        return (
+                          <div key={r.id} style={{background:"white",borderRadius:18,padding:"16px",marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,.07)",borderLeft:"4px solid #f59e0b"}}>
+                            <div style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:12}}>
+                              <div style={{width:44,height:44,borderRadius:13,background:"#fef3c7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{r.icon}</div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontWeight:800,fontSize:14,marginBottom:3}}>{r.facility_name}</div>
+                                <div style={{fontSize:12,color:"#64748b"}}>{r.date} · {r.time_slot}</div>
+                                <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{r.teacher_name} 선생님</div>
+                                <div style={{fontSize:12,color:"#64748b",marginTop:2,background:"#f8fafc",borderRadius:8,padding:"4px 8px",marginTop:6}}>{r.purpose}</div>
+                              </div>
+                              <span style={{background:"#fef3c7",color:"#d97706",padding:"4px 10px",borderRadius:99,fontSize:11,fontWeight:800,flexShrink:0}}>대기</span>
+                            </div>
+                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                              <button onClick={function(){ approveRes(r.id,"거절"); }} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:12,padding:"11px",fontSize:13,fontWeight:800,cursor:"pointer"}}>거절</button>
+                              <button onClick={function(){ approveRes(r.id,"승인"); }} style={{background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:12,padding:"11px",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 12px rgba(16,185,129,.35)"}}>승인 ✓</button>
+                            </div>
+                          </div>
+                        );
+                      })
+                  }
+
+                  {/* 최근 처리된 예약 */}
+                  <h2 style={{fontSize:14,fontWeight:800,margin:"20px 0 12px",color:"#374151"}}>📁 최근 처리된 예약</h2>
+                  {approvedR.concat(rejectedR).length===0
+                    ? <div style={{background:"white",borderRadius:16,padding:"20px",textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                        <div style={{fontSize:13,fontWeight:600}}>처리된 예약이 없어요</div>
+                      </div>
+                    : approvedR.concat(rejectedR).slice(0,10).map(function(r){
+                        return (
+                          <div key={r.id} style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,.05)",opacity:0.85}}>
+                            <div style={{width:40,height:40,borderRadius:12,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{r.icon}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontWeight:700,fontSize:13}}>{r.facility_name}</div>
+                              <div style={{fontSize:11,color:"#94a3b8"}}>{r.date} · {r.teacher_name}</div>
+                            </div>
+                            <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                              <span style={{background:r.status==="승인"?"#dcfce7":"#fee2e2",color:r.status==="승인"?"#16a34a":"#ef4444",padding:"4px 10px",borderRadius:99,fontSize:11,fontWeight:800}}>{r.status}</span>
+                              <button onClick={function(){ approveRes(r.id,"대기"); }} style={{background:"#f1f5f9",color:"#64748b",border:"none",borderRadius:8,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer"}}>되돌리기</button>
+                            </div>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              );
+            })()}
+
+            {/* 구분선 */}
+            <div style={{height:1,background:"#e2e8f0",margin:"24px 0"}}></div>
+
+            {/* 시설·교구 관리 */}
             <div style={{background:"linear-gradient(135deg,#4338ca,#6366f1)",borderRadius:18,padding:"16px 18px",marginBottom:22,display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{fontSize:28}}>⚙</div>
+              <div style={{fontSize:26}}>⚙</div>
               <div>
                 <div style={{color:"white",fontWeight:900,fontSize:15}}>시설·교구 관리</div>
                 <div style={{color:"rgba(255,255,255,.65)",fontSize:12,marginTop:2}}>Supabase DB에 실시간 저장됩니다</div>
