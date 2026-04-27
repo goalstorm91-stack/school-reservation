@@ -1232,7 +1232,6 @@ export default function App() {
                 </div>
               </div>;
             })}
-          </div>
 
             {/* ─ 공지사항 관리 ─ */}
             <div style={{height:1,background:"#e2e8f0",margin:"24px 0"}}></div>
@@ -1270,8 +1269,8 @@ export default function App() {
                 );
               })
             }
+          </div>
         )}
-      </div>
 
       {/* 예약 모달 */}
       {modal&&(
