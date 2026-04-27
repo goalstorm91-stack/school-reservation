@@ -443,6 +443,15 @@ export default function App() {
   }
   function setRF(k){ return function(e){ setRegForm(function(v){ var n=Object.assign({},v); n[k]=e.target.value; return n; }); }; }
 
+  function approveRes(id, status) {
+    sb.patch("reservations","id=eq."+id,{status:status})
+      .then(function(){
+        setRes(function(v){ return v.map(function(r){ return r.id===id ? Object.assign({},r,{status:status}) : r; }); });
+        notify(status==="승인" ? "예약이 승인됐어요!" : "예약이 거절됐어요", status==="승인"?"ok":"err");
+      })
+      .catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
   var allItems = facList.concat(itemList);
   var filtered = cat==="전체"?allItems:allItems.filter(function(i){ return i.category===cat; });
   var todayStr = fmtDate(today,0);
@@ -651,15 +660,6 @@ export default function App() {
             }
           </div>
         )}
-
-  function approveRes(id, status) {
-    sb.patch("reservations","id=eq."+id,{status:status})
-      .then(function(){
-        setRes(function(v){ return v.map(function(r){ return r.id===id ? Object.assign({},r,{status:status}) : r; }); });
-        notify(status==="승인" ? "예약이 승인됐어요! ✅" : "예약이 거절됐어요", status==="승인"?"ok":"err");
-      })
-      .catch(function(e){ notify("오류: "+e.message,"err"); });
-  }
 
         {/* ─ 관리 ─ */}
         {!loadingData&&tab==="manage"&&(
