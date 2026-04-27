@@ -544,6 +544,7 @@ export default function App() {
   var [editEmail,setEditEmail] = useState("");
   var [savingEmail,setSavingEmail] = useState(false);
   var [showMoreDates,setShowMoreDates] = useState(false);
+  var [calMonth,setCalMonth]           = useState(0); // 0=이번달, 1=다음달...
 
   // ── DB에서 데이터 불러오기 ──
   function loadAll(){
@@ -1227,7 +1228,7 @@ export default function App() {
 
       {/* 예약 모달 */}
       {modal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.55)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){ if(e.target===e.currentTarget){setModal(null);setStep(0);setShowMoreDates(false);} }}>
+        <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.55)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){ if(e.target===e.currentTarget){setModal(null);setStep(0);setShowMoreDates(false);setCalMonth(0);} }}>
           <div style={{background:"white",borderRadius:"26px 26px 0 0",padding:"28px 24px 44px",width:"100%",maxWidth:430,animation:"slideUp .32s ease",maxHeight:"88vh",overflowY:"auto"}}>
             <div style={{width:42,height:5,background:"#e2e8f0",borderRadius:99,margin:"0 auto 26px"}}/>
             {step===0&&(
@@ -1239,23 +1240,96 @@ export default function App() {
                     <p style={{color:"#64748b",margin:0,fontSize:13}}>{modal.floor||modal.category}{modal.capacity?" · "+modal.capacity+"명":modal.stock?" · 잔여 "+modal.stock+"개":""}</p>
                   </div>
                 </div>
-                <p style={{fontSize:13,fontWeight:700,margin:"0 0 11px",color:"#374151"}}>📅 날짜 선택</p>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:8}}>
-                  {Array.from({length: showMoreDates?30:7}, function(_,off){
-                    var d=fmtDate(today,off), sel=book.date===d;
-                    var dayD = new Date(today); dayD.setDate(dayD.getDate()+off);
-                    var isWeekend = dayD.getDay()===0||dayD.getDay()===6;
-                    return (
-                      <button key={off} onClick={function(){ setBook(function(b){ return Object.assign({},b,{date:d}); }); }}
-                        style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",color:sel?"white":isWeekend?"#ef4444":"#374151",border:sel?"none":"1.5px solid #e8ecf0",borderRadius:14,padding:"11px 4px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                        {d.split("(")[0]}<br/><span style={{fontSize:10}}>{("("+((d.match(/\((.)\)/)||["",""])[1])+")")}</span>
-                      </button>
-                    );
-                  })}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                  <p style={{fontSize:13,fontWeight:700,margin:0,color:"#374151"}}>📅 날짜 선택</p>
+                  {showMoreDates && (
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <button onClick={function(){ setCalMonth(function(m){ return m-1; }); }}
+                        style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:"#6366f1",fontWeight:700}}>‹</button>
+                      <span style={{fontSize:12,fontWeight:700,color:"#374151",whiteSpace:"nowrap"}}>
+                        {(function(){ var d=new Date(today); d.setMonth(d.getMonth()+calMonth); return d.getFullYear()+"년 "+(d.getMonth()+1)+"월"; })()}
+                      </span>
+                      <button onClick={function(){ setCalMonth(function(m){ return m+1; }); }}
+                        style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:"#6366f1",fontWeight:700}}>›</button>
+                    </div>
+                  )}
                 </div>
-                <button onClick={function(){ setShowMoreDates(function(v){ return !v; }); }}
+
+                {/* 기본: 이번 주 한 줄 (월~일) */}
+                {!showMoreDates && (function(){
+                  var monday = new Date(today);
+                  var dow = today.getDay();
+                  var diff = dow===0 ? -6 : 1-dow;
+                  monday.setDate(today.getDate()+diff);
+                  var days = Array.from({length:7}, function(_,i){
+                    var d = new Date(monday); d.setDate(monday.getDate()+i);
+                    return d;
+                  });
+                  return (
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+                      {["월","화","수","목","금","토","일"].map(function(d,i){
+                        return <div key={i} style={{textAlign:"center",fontSize:10,fontWeight:700,color:i>=5?"#ef4444":"#94a3b8",marginBottom:4,paddingBottom:4}}>{d}</div>;
+                      })}
+                      {days.map(function(d,i){
+                        var dStr=(d.getMonth()+1)+"/"+d.getDate()+"("+DAY_KR[d.getDay()]+")";
+                        var sel=book.date===dStr;
+                        var isToday=d.toDateString()===today.toDateString();
+                        var isPast=d<new Date(today.getFullYear(),today.getMonth(),today.getDate());
+                        var isWeekend=i>=5;
+                        return (
+                          <button key={i} disabled={isPast} onClick={function(){ setBook(function(b){ return Object.assign({},b,{date:dStr}); }); }}
+                            style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":isToday?"#ede9fe":"#f8fafc",color:sel?"white":isPast?"#d1d5db":isWeekend?"#ef4444":"#374151",border:sel?"none":isToday?"1.5px solid #6366f1":"1.5px solid #e8ecf0",borderRadius:10,padding:"8px 2px",fontSize:12,fontWeight:sel||isToday?800:600,cursor:isPast?"not-allowed":"pointer",opacity:isPast?0.4:1}}>
+                            {d.getDate()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* 더보기: 달력 형식 */}
+                {showMoreDates && (function(){
+                  var base = new Date(today.getFullYear(), today.getMonth()+calMonth, 1);
+                  var year = base.getFullYear(), month = base.getMonth();
+                  var firstDay = base.getDay(); // 0=일
+                  var daysInMonth = new Date(year,month+1,0).getDate();
+                  // 월요일 시작: 일요일=6, 월요일=0
+                  var startOffset = firstDay===0 ? 6 : firstDay-1;
+                  var cells = [];
+                  for(var i=0;i<startOffset;i++) cells.push(null);
+                  for(var j=1;j<=daysInMonth;j++) cells.push(j);
+                  while(cells.length%7!==0) cells.push(null);
+                  return (
+                    <div style={{marginBottom:8}}>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
+                        {["월","화","수","목","금","토","일"].map(function(d,i){
+                          return <div key={i} style={{textAlign:"center",fontSize:10,fontWeight:700,color:i>=5?"#ef4444":"#94a3b8",paddingBottom:4}}>{d}</div>;
+                        })}
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+                        {cells.map(function(day,idx){
+                          if(!day) return <div key={idx}></div>;
+                          var d = new Date(year,month,day);
+                          var dStr=(d.getMonth()+1)+"/"+d.getDate()+"("+DAY_KR[d.getDay()]+")";
+                          var sel=book.date===dStr;
+                          var isToday=d.toDateString()===today.toDateString();
+                          var isPast=d<new Date(today.getFullYear(),today.getMonth(),today.getDate());
+                          var isWeekend=idx%7>=5;
+                          return (
+                            <button key={idx} disabled={isPast} onClick={function(){ setBook(function(b){ return Object.assign({},b,{date:dStr}); }); }}
+                              style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":isToday?"#ede9fe":"#f8fafc",color:sel?"white":isPast?"#d1d5db":isWeekend?"#ef4444":"#374151",border:sel?"none":isToday?"1.5px solid #6366f1":"1.5px solid #e8ecf0",borderRadius:10,padding:"8px 2px",fontSize:12,fontWeight:sel||isToday?800:600,cursor:isPast?"not-allowed":"pointer",opacity:isPast?0.4:1,textAlign:"center"}}>
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <button onClick={function(){ setShowMoreDates(function(v){ return !v; }); if(showMoreDates) setCalMonth(0); }}
                   style={{width:"100%",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:12,padding:"9px",fontSize:12,fontWeight:700,color:"#6366f1",cursor:"pointer",marginBottom:22,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                  {showMoreDates ? "▲ 접기" : "▼ 더보기 (한 달 전체 보기)"}
+                  {showMoreDates ? "▲ 접기" : "▼ 한 달 달력으로 보기"}
                 </button>
                 <p style={{fontSize:13,fontWeight:700,margin:"0 0 11px",color:"#374151"}}>🕐 교시 선택</p>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:24}}>
