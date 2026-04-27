@@ -648,21 +648,40 @@ export default function App() {
   function setRF(k){ return function(e){ setRegForm(function(v){ var n=Object.assign({},v); n[k]=e.target.value; return n; }); }; }
 
   function addNotif(recipientName, message, type, reservationId){
-    console.log("알림 생성:", recipientName, message);
-    var data = {
-      recipient_name: recipientName,
-      message: message,
-      type: type||"info",
-      is_read: false,
-      reservation_id: reservationId||null,
-    };
-    sb.post("notifications", data)
-      .then(function(rows){
-        console.log("알림 저장 성공:", rows);
-        var n = (rows&&rows[0])||Object.assign({id:Date.now(),created_at:new Date().toISOString()},data);
+    console.log("addNotif 호출됨:", recipientName, message);
+    // sbFetch 헬퍼 우회 — fetch 직접 호출
+    fetch(SUPABASE_URL+"/rest/v1/notifications", {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer "+SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+      },
+      body: JSON.stringify({
+        recipient_name: recipientName,
+        message: message,
+        type: type||"info",
+        is_read: false,
+      }),
+    })
+    .then(function(res){
+      console.log("알림 응답 status:", res.status);
+      return res.text();
+    })
+    .then(function(text){
+      console.log("알림 응답 body:", text);
+      try {
+        var rows = JSON.parse(text);
+        var n = (rows&&rows[0])||{id:Date.now(),created_at:new Date().toISOString(),recipient_name:recipientName,message:message,type:type||"info",is_read:false};
         setNotifs(function(v){ return [n].concat(v); });
-      })
-      .catch(function(e){ console.error("알림 저장 오류:",e); });
+        notify("알림 전송 완료!", "ok");
+      } catch(e) { console.error("파싱 오류:", e, text); }
+    })
+    .catch(function(e){
+      console.error("알림 fetch 오류:", e);
+      notify("알림 오류: "+e.message, "err");
+    });
   }
 
   function refreshNotifs(){
@@ -982,6 +1001,13 @@ export default function App() {
                 {res.filter(function(r){ return r.status==="대기"; }).length}건
               </div>
             </div>
+
+            {/* 알림 테스트 버튼 */}
+            <button onClick={function(){
+              addNotif(user.name, "테스트 알림입니다! "+new Date().toLocaleTimeString(), "success", null);
+            }} style={{width:"100%",background:"#f1f5f9",border:"1.5px dashed #94a3b8",borderRadius:12,padding:"10px",fontSize:12,fontWeight:700,color:"#64748b",cursor:"pointer",marginBottom:16}}>
+              🧪 알림 테스트 (내 계정으로 알림 보내기)
+            </button>
 
             {/* 승인 필터 탭 */}
             {(function(){
