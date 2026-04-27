@@ -373,23 +373,51 @@ export default function App() {
 
   // ── 예약 신청 → DB 저장 ──
   function confirmBook(item){
+    var targetDate = book.date||fmtDate(today,0);
+    var targetTime = book.time||TIME_SLOTS[0];
+
+    // ── 중복 체크 1: 로컬 상태에서 즉시 확인 ──
+    var localDup = res.find(function(r){
+      return r.facility_name===item.name
+        && r.date===targetDate
+        && r.time_slot===targetTime
+        && r.status!=="거절";
+    });
+    if(localDup){
+      notify(item.name+" "+targetTime+"은 이미 예약됐어요!", "err");
+      return;
+    }
+
     var data = {
       facility_name: item.name,
       icon: item.icon,
-      date: book.date||fmtDate(today,0),
-      time_slot: book.time||TIME_SLOTS[0],
+      date: targetDate,
+      time_slot: targetTime,
       teacher_name: user.name,
       purpose: book.purpose||"수업 활용",
       status: "대기",
     };
-    sb.post("reservations", data)
-      .then(function(rows){
-        var saved = (rows&&rows[0]) ? rows[0] : Object.assign({id:Date.now()},data);
-        setRes(function(v){ return [saved].concat(v); });
-        setModal(null); setStep(0); setBook({date:"",time:"",purpose:""});
-        notify(item.name+" 예약 신청 완료! 🎉");
-      })
-      .catch(function(e){ notify("예약 오류: "+e.message,"err"); });
+
+    // ── 중복 체크 2: DB에서 재확인 후 저장 (동시 신청 방지) ──
+    sb.get("reservations",
+      "select=id&facility_name=eq."+encodeURIComponent(item.name)+
+      "&date=eq."+encodeURIComponent(targetDate)+
+      "&time_slot=eq."+encodeURIComponent(targetTime)+
+      "&status=neq.거절"
+    ).then(function(rows){
+      if(rows && rows.length > 0){
+        notify(item.name+" "+targetTime+"은 이미 예약됐어요!", "err");
+        return;
+      }
+      sb.post("reservations", data)
+        .then(function(saved){
+          var r = (saved&&saved[0]) ? saved[0] : Object.assign({id:Date.now()},data);
+          setRes(function(v){ return [r].concat(v); });
+          setModal(null); setStep(0); setBook({date:"",time:"",purpose:""});
+          notify(item.name+" 예약 신청 완료! 🎉");
+        })
+        .catch(function(e){ notify("예약 오류: "+e.message,"err"); });
+    }).catch(function(e){ notify("중복 확인 오류: "+e.message,"err"); });
   }
 
   // ── 관리: 시설 등록/수정 ──
@@ -826,7 +854,27 @@ export default function App() {
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:24}}>
                   {TIME_SLOTS.map(function(t){
                     var sel=book.time===t;
-                    return <button key={t} onClick={function(){ setBook(function(b){ return Object.assign({},b,{time:t}); }); }} style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",color:sel?"white":"#374151",border:sel?"none":"1.5px solid #e8ecf0",borderRadius:13,padding:"11px 10px",fontSize:12,fontWeight:700,cursor:"pointer",textAlign:"left"}}>{t}</button>;
+                    var isBooked=res.some(function(r){
+                      return r.facility_name===modal.name
+                        && r.date===(book.date||fmtDate(today,0))
+                        && r.time_slot===t
+                        && r.status!=="거절";
+                    });
+                    return (
+                      <button key={t} onClick={function(){ if(!isBooked) setBook(function(b){ return Object.assign({},b,{time:t}); }); }}
+                        disabled={isBooked}
+                        style={{
+                          background: isBooked?"#f1f5f9": sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",
+                          color: isBooked?"#cbd5e1": sel?"white":"#374151",
+                          border: isBooked?"1.5px solid #e2e8f0": sel?"none":"1.5px solid #e8ecf0",
+                          borderRadius:13,padding:"11px 10px",fontSize:12,fontWeight:700,
+                          cursor:isBooked?"not-allowed":"pointer",textAlign:"left",
+                          position:"relative",opacity:isBooked?0.7:1,
+                        }}>
+                        {t}
+                        {isBooked && <span style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",fontSize:9,background:"#e2e8f0",color:"#94a3b8",padding:"2px 6px",borderRadius:99,fontWeight:800}}>예약됨</span>}
+                      </button>
+                    );
                   })}
                 </div>
                 <button onClick={function(){ setStep(1); }} disabled={!book.date||!book.time} style={{width:"100%",background:(!book.date||!book.time)?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8b5cf6)",color:(!book.date||!book.time)?"#94a3b8":"white",border:"none",borderRadius:16,padding:16,fontSize:16,fontWeight:800,cursor:(!book.date||!book.time)?"not-allowed":"pointer"}}>다음 단계 →</button>
