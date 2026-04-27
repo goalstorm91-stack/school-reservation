@@ -157,9 +157,11 @@ function QRCode(props) {
 }
 
 // ── 공지 배너 ────────────────────────────
-function NoticeBanner() {
+function NoticeBanner(props) {
+  var noticeList = (props.notices && props.notices.length > 0) ? props.notices : NOTICES;
   var [open,setOpen]=useState(false), [sel,setSel]=useState(null);
-  var urgent=NOTICES.filter(function(n){ return n.type==="urgent"; }).length;
+  var urgent=noticeList.filter(function(n){ return n.type==="urgent"; }).length;
+  if(noticeList.length===0) return null;
   return (
     <div style={{width:"100%",maxWidth:380,marginBottom:14}}>
       <div onClick={function(){ setOpen(function(v){ return !v; }); }}
@@ -170,21 +172,21 @@ function NoticeBanner() {
         </div>
         <div style={{flex:1,overflow:"hidden",whiteSpace:"nowrap"}}>
           <span style={{display:"inline-block",animation:"marquee 16s linear infinite",color:"rgba(255,255,255,.88)",fontSize:12,fontWeight:600}}>
-            {NOTICES[0].icon} [{NOTICES[0].title}] {NOTICES[0].text}
+            {noticeList[0].icon} [{noticeList[0].title}] {noticeList[0].text}
           </span>
         </div>
         <span style={{color:"rgba(255,255,255,.5)",fontSize:11,transition:"transform .25s",transform:open?"rotate(180deg)":"none",display:"inline-block"}}>▼</span>
       </div>
       {open&&(
         <div style={{background:"rgba(10,20,50,.92)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,.1)",borderTop:"none",borderRadius:"0 0 16px 16px",overflow:"hidden"}}>
-          {NOTICES.map(function(n,i){
+          {noticeList.map(function(n,i){
             return (
               <div key={n.id} onClick={function(){ setSel(n); }}
                 style={{padding:"12px 16px",borderTop:i?"1px solid rgba(255,255,255,.07)":"none",display:"flex",gap:12,alignItems:"flex-start",cursor:"pointer",background:n.type==="urgent"?"rgba(239,68,68,.07)":"transparent"}}>
                 <span style={{fontSize:17,flexShrink:0}}>{n.icon}</span>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                    <span style={{background:BADGE_CLR[n.type],color:"white",fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99}}>{n.title}</span>
+                    <span style={{background:BADGE_CLR[n.type]||"#60a5fa",color:"white",fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99}}>{n.title}</span>
                     <span style={{color:"rgba(255,255,255,.3)",fontSize:10}}>{n.date}</span>
                   </div>
                   <p style={{color:"rgba(255,255,255,.7)",fontSize:12,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.text}</p>
@@ -199,7 +201,7 @@ function NoticeBanner() {
           <div style={{background:"linear-gradient(160deg,#1e1b4b,#1e3a5f)",borderRadius:24,padding:"32px 26px",width:"100%",maxWidth:340,animation:"popIn .28s ease"}} onClick={function(e){ e.stopPropagation(); }}>
             <div style={{fontSize:28,marginBottom:12}}>{sel.icon}</div>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-              <span style={{background:BADGE_CLR[sel.type],color:"white",fontSize:11,fontWeight:900,padding:"3px 10px",borderRadius:99}}>{sel.title}</span>
+              <span style={{background:BADGE_CLR[sel.type]||"#60a5fa",color:"white",fontSize:11,fontWeight:900,padding:"3px 10px",borderRadius:99}}>{sel.title}</span>
               <span style={{color:"rgba(255,255,255,.35)",fontSize:12}}>{sel.date}</span>
             </div>
             <p style={{color:"rgba(255,255,255,.9)",fontSize:14,lineHeight:1.85,margin:"0 0 24px"}}>{sel.text}</p>
@@ -282,7 +284,7 @@ function LoginScreen(props) {
         <p style={{color:"rgba(255,255,255,.42)",fontSize:12,margin:0}}>소정초등학교 · 시설·교구 통합 예약</p>
       </div>
 
-      <NoticeBanner />
+      <NoticeBanner notices={props.notices} />
 
       <div style={{width:"100%",maxWidth:380,background:"rgba(255,255,255,.07)",borderRadius:18,padding:5,marginBottom:16,display:"flex",border:"1px solid rgba(255,255,255,.1)"}}>
         {[["login","🔐 로그인"],["signup","✏ 회원가입"]].map(function(item){
@@ -551,7 +553,14 @@ export default function App() {
   var [editEmail,setEditEmail] = useState("");
   var [savingEmail,setSavingEmail] = useState(false);
   var [showMoreDates,setShowMoreDates] = useState(false);
-  var [calMonth,setCalMonth]           = useState(0); // 0=이번달, 1=다음달...
+  var [calMonth,setCalMonth]           = useState(0);
+  var [notices,setNotices]             = useState([
+    { id:1, type:"urgent", icon:"🚨", title:"긴급", text:"오늘 오후 과학실 누수로 3~6교시 사용 불가합니다.", date:"오늘" },
+    { id:2, type:"info",   icon:"📢", title:"공지", text:"5/15(목) 전 시설 예약이 제한됩니다.", date:"5/12" },
+    { id:3, type:"new",    icon:"✨", title:"안내", text:"태블릿 세트 10대 신규 입고되었습니다.", date:"5/10" },
+    { id:4, type:"info",   icon:"🔧", title:"점검", text:"매주 금요일 오후 컴퓨터실 정기 점검이 있습니다.", date:"상시" },
+  ]);
+  var [noticeModal,setNoticeModal]     = useState(null); // 0=이번달, 1=다음달...
 
   // ── DB에서 데이터 불러오기 ──
   function loadAll(){
@@ -589,6 +598,7 @@ export default function App() {
   }, [user]);
 
   if(!user) return <LoginScreen
+    notices={notices}
     onLogin={function(u){ setUser(u); }}
     onRegister={function(a){ console.log("가입됨",a); }}
   />;
@@ -1104,13 +1114,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* 알림 테스트 버튼 */}
-            <button onClick={function(){
-              addNotif(user.name, "테스트 알림입니다! "+new Date().toLocaleTimeString(), "success", null);
-            }} style={{width:"100%",background:"#f1f5f9",border:"1.5px dashed #94a3b8",borderRadius:12,padding:"10px",fontSize:12,fontWeight:700,color:"#64748b",cursor:"pointer",marginBottom:16}}>
-              🧪 알림 테스트 (내 계정으로 알림 보내기)
-            </button>
-
             {/* 승인 필터 탭 */}
             {(function(){
               var pendingR = res.filter(function(r){ return r.status==="대기"; });
@@ -1230,6 +1233,43 @@ export default function App() {
               </div>;
             })}
           </div>
+
+            {/* ─ 공지사항 관리 ─ */}
+            <div style={{height:1,background:"#e2e8f0",margin:"24px 0"}}></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📢 공지사항 관리</h2>
+              <button onClick={function(){ setNoticeModal({mode:"add",data:{title:"공지",text:"",type:"info",icon:"📢",date:fmtDate(today,0)}}); }}
+                style={{background:"linear-gradient(135deg,#0ea5e9,#0284c7)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 공지</button>
+            </div>
+            {notices.length===0
+              ? <div style={{background:"white",borderRadius:14,padding:"20px",textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 8px rgba(0,0,0,.05)",fontSize:13}}>등록된 공지사항이 없어요</div>
+              : notices.map(function(n){
+                var typeBg={urgent:"#fee2e2",info:"#ede9fe",new:"#dcfce7"};
+                var typeColor={urgent:"#ef4444",info:"#6366f1",new:"#16a34a"};
+                return (
+                  <div key={n.id} style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                      <span style={{fontSize:18,flexShrink:0}}>{n.icon}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                          <span style={{background:typeBg[n.type]||"#f1f5f9",color:typeColor[n.type]||"#64748b",fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:99}}>{n.title}</span>
+                          <span style={{color:"#94a3b8",fontSize:11}}>{n.date}</span>
+                        </div>
+                        <p style={{fontSize:12,color:"#374151",margin:0,lineHeight:1.5}}>{n.text}</p>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0}}>
+                        <button onClick={function(){ setNoticeModal({mode:"edit",data:Object.assign({},n)}); }}
+                          style={{background:"#ede9fe",color:"#6366f1",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>수정</button>
+                        <button onClick={function(){
+                          setNotices(function(v){ return v.filter(function(x){ return x.id!==n.id; }); });
+                          notify("공지사항이 삭제됐어요");
+                        }} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>삭제</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            }
         )}
       </div>
 
@@ -1514,6 +1554,87 @@ export default function App() {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <button onClick={function(){ setDelConfirm(null); }} style={{background:"#f1f5f9",color:"#374151",border:"none",borderRadius:14,padding:14,fontSize:14,fontWeight:700,cursor:"pointer"}}>취소</button>
               <button onClick={function(){ deleteItem(delConfirm.type,delConfirm.item.id); }} style={{background:"linear-gradient(135deg,#ef4444,#dc2626)",color:"white",border:"none",borderRadius:14,padding:14,fontSize:14,fontWeight:800,cursor:"pointer"}}>삭제하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 공지 등록/수정 모달 */}
+      {noticeModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.6)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+          onClick={function(e){ if(e.target===e.currentTarget) setNoticeModal(null); }}>
+          <div style={{background:"white",borderRadius:"26px 26px 0 0",padding:"28px 24px 44px",width:"100%",maxWidth:430,animation:"slideUp .32s ease",maxHeight:"88vh",overflowY:"auto"}}
+            onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{width:42,height:5,background:"#e2e8f0",borderRadius:99,margin:"0 auto 22px"}}/>
+            <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 20px"}}>{noticeModal.mode==="add"?"📢 새 공지 등록":"✏ 공지 수정"}</h3>
+
+            {/* 유형 선택 */}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>유형</label>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                {[["urgent","🚨","긴급"],["info","📢","공지"],["new","✨","안내"]].map(function(item){
+                  var sel=noticeModal.data.type===item[0];
+                  return <button key={item[0]} onClick={function(){ setNoticeModal(function(v){ return Object.assign({},v,{data:Object.assign({},v.data,{type:item[0],icon:item[1],title:item[2]})}); }); }}
+                    style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",color:sel?"white":"#374151",border:sel?"none":"1.5px solid #e8ecf0",borderRadius:12,padding:"10px 6px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                    {item[1]} {item[2]}
+                  </button>;
+                })}
+              </div>
+            </div>
+
+            {/* 제목 */}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>제목 태그</label>
+              <input value={noticeModal.data.title||""} onChange={function(e){ setNoticeModal(function(v){ return Object.assign({},v,{data:Object.assign({},v.data,{title:e.target.value})}); }); }}
+                placeholder="예: 긴급, 공지, 안내, 점검"
+                style={{width:"100%",boxSizing:"border-box",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:12,padding:"12px 14px",fontSize:14,fontFamily:"sans-serif",color:"#1e293b"}}/>
+            </div>
+
+            {/* 내용 */}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>공지 내용 *</label>
+              <textarea value={noticeModal.data.text||""} onChange={function(e){ setNoticeModal(function(v){ return Object.assign({},v,{data:Object.assign({},v.data,{text:e.target.value})}); }); }}
+                placeholder="공지 내용을 입력하세요"
+                style={{width:"100%",boxSizing:"border-box",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:12,padding:"12px 14px",fontSize:14,fontFamily:"sans-serif",color:"#1e293b",resize:"none",height:80}}/>
+            </div>
+
+            {/* 날짜 */}
+            <div style={{marginBottom:22}}>
+              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>날짜 표시</label>
+              <input value={noticeModal.data.date||""} onChange={function(e){ setNoticeModal(function(v){ return Object.assign({},v,{data:Object.assign({},v.data,{date:e.target.value})}); }); }}
+                placeholder="예: 오늘, 5/12, 상시"
+                style={{width:"100%",boxSizing:"border-box",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:12,padding:"12px 14px",fontSize:14,fontFamily:"sans-serif",color:"#1e293b"}}/>
+            </div>
+
+            {/* 미리보기 */}
+            <div style={{background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:14,padding:"12px 16px",marginBottom:20,display:"flex",gap:10,alignItems:"flex-start"}}>
+              <span style={{fontSize:18,flexShrink:0}}>{noticeModal.data.icon||"📢"}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
+                  <span style={{background:BADGE_CLR[noticeModal.data.type]||"#60a5fa",color:"white",fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:99}}>{noticeModal.data.title||"공지"}</span>
+                  <span style={{color:"#94a3b8",fontSize:11}}>{noticeModal.data.date||""}</span>
+                </div>
+                <p style={{fontSize:12,color:"#374151",margin:0,lineHeight:1.5}}>{noticeModal.data.text||"내용을 입력해주세요"}</p>
+              </div>
+              <span style={{fontSize:10,color:"#94a3b8",flexShrink:0}}>미리보기</span>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
+              <button onClick={function(){ setNoticeModal(null); }} style={{background:"#f1f5f9",color:"#374151",border:"none",borderRadius:15,padding:15,fontSize:15,fontWeight:700,cursor:"pointer"}}>취소</button>
+              <button onClick={function(){
+                if(!noticeModal.data.text||!noticeModal.data.text.trim()){ notify("내용을 입력해주세요","err"); return; }
+                if(noticeModal.mode==="add"){
+                  var newN = Object.assign({id:Date.now()},noticeModal.data);
+                  setNotices(function(v){ return [newN].concat(v); });
+                  notify("공지사항이 등록됐어요!");
+                } else {
+                  setNotices(function(v){ return v.map(function(x){ return x.id===noticeModal.data.id ? Object.assign({},x,noticeModal.data) : x; }); });
+                  notify("공지사항이 수정됐어요!");
+                }
+                setNoticeModal(null);
+              }} style={{background:"linear-gradient(135deg,#0ea5e9,#0284c7)",color:"white",border:"none",borderRadius:15,padding:15,fontSize:15,fontWeight:800,cursor:"pointer"}}>
+                {noticeModal.mode==="add"?"등록하기 ✓":"저장하기 ✓"}
+              </button>
             </div>
           </div>
         </div>
