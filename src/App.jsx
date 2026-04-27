@@ -683,18 +683,25 @@ export default function App() {
   }
 
   function approveRes(id, status) {
-    var target = res.find(function(r){ return r.id===id; });
+    // == 로 느슨한 비교 (숫자/문자열 타입 불일치 방지)
+    var target = res.find(function(r){ return r.id == id; });
+    console.log("승인 처리:", id, "target:", target);
     sb.patch("reservations","id=eq."+id,{status:status})
       .then(function(){
-        setRes(function(v){ return v.map(function(r){ return r.id===id ? Object.assign({},r,{status:status}) : r; }); });
+        setRes(function(v){ return v.map(function(r){ return r.id==id ? Object.assign({},r,{status:status}) : r; }); });
         notify(status==="승인" ? "예약이 승인됐어요!" : "예약이 거절됐어요", status==="승인"?"ok":"err");
         // 알림 생성
-        if(target){
-          var msg = status==="승인"
-            ? target.facility_name+" "+target.time_slot+" 예약이 승인됐어요!"
-            : target.facility_name+" "+target.time_slot+" 예약이 거절됐어요.";
+        var recipientName = target ? target.teacher_name : "";
+        var facilityName  = target ? target.facility_name : "";
+        var timeSlot      = target ? target.time_slot : "";
+        if(recipientName){
+          var msg   = status==="승인"
+            ? facilityName+" "+timeSlot+" 예약이 승인됐어요!"
+            : facilityName+" "+timeSlot+" 예약이 거절됐어요.";
           var ntype = status==="승인" ? "success" : "error";
-          addNotif(target.teacher_name, msg, ntype, id);
+          addNotif(recipientName, msg, ntype, id);
+        } else {
+          console.warn("target을 찾지 못해 알림 생성 생략. id:", id, "res:", res.map(function(r){ return r.id; }));
         }
       })
       .catch(function(e){ notify("오류: "+e.message,"err"); });
