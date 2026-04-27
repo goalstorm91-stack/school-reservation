@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import QRCodeLib from "qrcode";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  🔑 여기에 Supabase 정보를 입력하세요!
@@ -77,29 +78,32 @@ function Spinner(props) {
   );
 }
 
-// ── QR 코드 ──────────────────────────────
+// ── QR 코드 (진짜 스캔 가능) ─────────────
 function QRCode(props) {
-  var text = props.text, size = props.size||136;
-  var cells=21, cell=size/cells;
-  var seed=0; for(var ci=0;ci<text.length;ci++) seed+=text.charCodeAt(ci);
-  function rng(i){ return ((seed*9301+i*49297)%233280)/233280; }
-  var fixed={};
-  [[0,0],[0,14],[14,0]].forEach(function(rc){
-    for(var dr=0;dr<7;dr++) for(var dc=0;dc<7;dc++) fixed[(rc[0]+dr)+","+(rc[1]+dc)]=true;
-  });
-  var rects=[];
-  for(var r=0;r<cells;r++) for(var c=0;c<cells;c++){
-    var key=r+","+c, dark;
-    if(fixed[key]){
-      var base=[[0,0],[0,14],[14,0]].find(function(b){ return r>=b[0]&&r<b[0]+7&&c>=b[1]&&c<b[1]+7; })||[0,0];
-      var lr=r-base[0],lc=c-base[1];
-      dark=lr===0||lr===6||lc===0||lc===6||(lr>=2&&lr<=4&&lc>=2&&lc<=4);
-    } else { dark=rng(r*cells+c)>0.5; }
-    if(dark) rects.push(<rect key={key} x={c*cell} y={r*cell} width={cell} height={cell} fill="#1e1b4b"/>);
-  }
+  var text = props.text;
+  var size = props.size || 180;
+  var canvasRef = useRef(null);
+  var [dataUrl, setDataUrl] = useState("");
+
+  useEffect(function(){
+    QRCodeLib.toDataURL(text, {
+      width: size,
+      margin: 2,
+      color: { dark:"#1e1b4b", light:"#ffffff" },
+      errorCorrectionLevel: "H",
+    }, function(err, url){
+      if(!err) setDataUrl(url);
+    });
+  }, [text, size]);
+
+  if(!dataUrl) return (
+    <div style={{width:size,height:size,background:"#f1f5f9",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <Spinner size={24}/>
+    </div>
+  );
   return (
     <div style={{background:"white",borderRadius:16,padding:10,display:"inline-block",boxShadow:"0 4px 20px rgba(0,0,0,.12)"}}>
-      <svg width={size} height={size}>{rects}</svg>
+      <img src={dataUrl} width={size} height={size} style={{display:"block",borderRadius:8}} alt="QR Code"/>
     </div>
   );
 }
@@ -916,16 +920,40 @@ export default function App() {
       {/* QR 모달 */}
       {qr&&(
         <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.6)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={function(){ setQr(null); }}>
-          <div style={{background:"white",borderRadius:26,padding:"34px 28px",width:"100%",maxWidth:340,animation:"popIn .3s ease",textAlign:"center"}} onClick={function(e){ e.stopPropagation(); }}>
-            <div style={{width:60,height:60,borderRadius:20,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 10px"}}>{qr.icon}</div>
-            <h3 style={{fontSize:20,fontWeight:900,margin:"0 0 4px"}}>{qr.facility_name}</h3>
-            <p style={{color:"#64748b",fontSize:13,margin:"0 0 4px"}}>{qr.date} · {qr.time_slot}</p>
-            <p style={{color:"#94a3b8",fontSize:12,margin:"0 0 20px"}}>{qr.purpose}</p>
-            <div style={{display:"flex",justifyContent:"center",marginBottom:18}}><QRCode text={"res-"+qr.id+"-"+(qr.facility_name||"")}/></div>
-            {qr.status==="승인"
-              ?<div style={{background:"#dcfce7",borderRadius:13,padding:11,marginBottom:14}}><span style={{color:"#16a34a",fontWeight:800,fontSize:13}}>✅ 승인 완료 · 입실 QR</span></div>
-              :<div style={{background:"#fef3c7",borderRadius:13,padding:11,marginBottom:14}}><span style={{color:"#d97706",fontWeight:800,fontSize:13}}>⏳ 관리자 승인 대기 중</span></div>
-            }
+          <div style={{background:"white",borderRadius:26,padding:"28px 24px",width:"100%",maxWidth:340,animation:"popIn .3s ease",textAlign:"center",maxHeight:"90vh",overflowY:"auto"}} onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{width:56,height:56,borderRadius:18,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,margin:"0 auto 10px"}}>{qr.icon}</div>
+            <h3 style={{fontSize:19,fontWeight:900,margin:"0 0 4px"}}>{qr.facility_name}</h3>
+            <p style={{color:"#64748b",fontSize:13,margin:"0 0 2px"}}>{qr.date} · {qr.time_slot}</p>
+            <p style={{color:"#94a3b8",fontSize:12,margin:"0 0 4px"}}>{qr.teacher_name} 선생님</p>
+            <p style={{color:"#94a3b8",fontSize:11,margin:"0 0 18px",background:"#f8fafc",borderRadius:8,padding:"4px 10px",display:"inline-block"}}>{qr.purpose}</p>
+
+            {qr.status==="승인" ? (
+              <div>
+                <div style={{background:"#dcfce7",border:"1px solid #86efac",borderRadius:12,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <span style={{color:"#16a34a",fontWeight:800,fontSize:13}}>✅ 승인 완료 · 입실 QR코드</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
+                  <QRCode
+                    text={"https://school-reservation-pi.vercel.app/checkin?id="+qr.id+"&facility="+encodeURIComponent(qr.facility_name)+"&date="+encodeURIComponent(qr.date)+"&time="+encodeURIComponent(qr.time_slot)+"&teacher="+encodeURIComponent(qr.teacher_name)}
+                    size={190}
+                  />
+                </div>
+                <p style={{color:"#64748b",fontSize:11,margin:"0 0 6px",lineHeight:1.6}}>시설 입구에서 QR코드를 스캔하면<br/>자동으로 입실 처리됩니다</p>
+                <div style={{background:"#f8fafc",borderRadius:10,padding:"8px 12px",marginBottom:16,fontSize:10,color:"#94a3b8",wordBreak:"break-all",textAlign:"left"}}>
+                  <span style={{fontWeight:700,color:"#64748b"}}>예약 ID: </span>{qr.id}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:12,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <span style={{color:"#d97706",fontWeight:800,fontSize:13}}>⏳ 관리자 승인 대기 중</span>
+                </div>
+                <div style={{background:"#f8fafc",borderRadius:16,padding:"32px 20px",marginBottom:16,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+                  <div style={{fontSize:36}}>🔒</div>
+                  <p style={{fontSize:12,color:"#94a3b8",margin:0,lineHeight:1.7}}>승인 후 QR코드가 생성됩니다<br/>관리자의 승인을 기다려주세요</p>
+                </div>
+              </div>
+            )}
             <button onClick={function(){ setQr(null); }} style={{width:"100%",background:"#f1f5f9",border:"none",borderRadius:15,padding:14,fontSize:15,fontWeight:700,cursor:"pointer",color:"#374151"}}>닫기</button>
           </div>
         </div>
