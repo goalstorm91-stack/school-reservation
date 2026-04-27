@@ -497,6 +497,8 @@ export default function App() {
   var [regModal,setRegModal]= useState(null);
   var [regForm,setRegForm] = useState({});
   var [delConfirm,setDelConfirm] = useState(null);
+  var [notifs,setNotifs]       = useState([]);
+  var [notiPanel,setNotiPanel] = useState(false);
 
   // ── DB에서 데이터 불러오기 ──
   function loadAll(){
@@ -505,10 +507,12 @@ export default function App() {
       sb.get("facilities","select=*&order=id"),
       sb.get("items","select=*&order=id"),
       sb.get("reservations","select=*&order=created_at.desc"),
+      sb.get("notifications","select=*&order=created_at.desc&limit=30"),
     ]).then(function(results){
       setFacList(results[0]||[]);
       setItemList(results[1]||[]);
       setRes(results[2]||[]);
+      setNotifs(results[3]||[]);
       setLoadingData(false);
     }).catch(function(e){
       console.error("데이터 로딩 오류:", e);
@@ -632,11 +636,47 @@ export default function App() {
   }
   function setRF(k){ return function(e){ setRegForm(function(v){ var n=Object.assign({},v); n[k]=e.target.value; return n; }); }; }
 
+  function addNotif(recipientName, message, type, reservationId){
+    var data = {
+      recipient_name: recipientName,
+      message: message,
+      type: type||"info",
+      is_read: false,
+      reservation_id: reservationId||null,
+    };
+    sb.post("notifications", data)
+      .then(function(rows){
+        var n = (rows&&rows[0])||Object.assign({id:Date.now(),created_at:new Date().toISOString()},data);
+        setNotifs(function(v){ return [n].concat(v); });
+      })
+      .catch(function(e){ console.error("알림 저장 오류:",e); });
+  }
+
+  function markAllRead(){
+    var myUnread = notifs.filter(function(n){ return n.recipient_name===user.name && !n.is_read; });
+    if(myUnread.length===0) return;
+    myUnread.forEach(function(n){
+      sb.patch("notifications","id=eq."+n.id,{is_read:true}).catch(function(){});
+    });
+    setNotifs(function(v){ return v.map(function(n){
+      return n.recipient_name===user.name ? Object.assign({},n,{is_read:true}) : n;
+    }); });
+  }
+
   function approveRes(id, status) {
+    var target = res.find(function(r){ return r.id===id; });
     sb.patch("reservations","id=eq."+id,{status:status})
       .then(function(){
         setRes(function(v){ return v.map(function(r){ return r.id===id ? Object.assign({},r,{status:status}) : r; }); });
         notify(status==="승인" ? "예약이 승인됐어요!" : "예약이 거절됐어요", status==="승인"?"ok":"err");
+        // 알림 생성
+        if(target){
+          var msg = status==="승인"
+            ? target.facility_name+" "+target.time_slot+" 예약이 승인됐어요!"
+            : target.facility_name+" "+target.time_slot+" 예약이 거절됐어요.";
+          var ntype = status==="승인" ? "success" : "error";
+          addNotif(target.teacher_name, msg, ntype, id);
+        }
       })
       .catch(function(e){ notify("오류: "+e.message,"err"); });
   }
@@ -647,6 +687,8 @@ export default function App() {
   var todayR   = res.filter(function(r){ return r.date===todayStr; });
   var myR      = res.filter(function(r){ return r.teacher_name===user.name; });
   var pending  = res.filter(function(r){ return r.status==="대기"; }).length;
+  var myNotifs = notifs.filter(function(n){ return n.recipient_name===user.name; });
+  var unreadCnt= myNotifs.filter(function(n){ return !n.is_read; }).length;
 
   var TABS=[["home","🏠","홈"],["facilities","🏫","시설"],["items","📦","교구"],["mypage","📋","내 예약"]];
   if(user.role==="admin") TABS.push(["manage","⚙","관리"]);
@@ -656,6 +698,46 @@ export default function App() {
       <style>{CSS}</style>
 
       {toast&&<div style={{position:"fixed",top:22,left:"50%",transform:"translateX(-50%)",background:toast.type==="ok"?"linear-gradient(135deg,#10b981,#059669)":"#ef4444",color:"white",padding:"13px 26px",borderRadius:99,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",animation:"toastAnim .3s ease"}}>{toast.msg}</div>}
+
+      {/* 알림 패널 */}
+      {notiPanel&&(
+        <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column"}} onClick={function(){ setNotiPanel(false); }}>
+          <div style={{position:"absolute",top:0,right:0,width:"100%",maxWidth:430,background:"white",borderRadius:"0 0 20px 20px",boxShadow:"0 8px 32px rgba(0,0,0,.18)",maxHeight:"70vh",display:"flex",flexDirection:"column",animation:"fadeUp .25s ease"}} onClick={function(e){ e.stopPropagation(); }}>
+            {/* 패널 헤더 */}
+            <div style={{padding:"16px 18px 12px",borderBottom:"1px solid #e8ecf0",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:18}}>🔔</span>
+                <span style={{fontWeight:800,fontSize:15,color:"#1e293b"}}>알림</span>
+                {unreadCnt>0&&<span style={{background:"#ef4444",color:"white",fontSize:10,fontWeight:900,borderRadius:99,padding:"2px 7px"}}>{unreadCnt}</span>}
+              </div>
+              <button onClick={function(){ setNotiPanel(false); }} style={{background:"none",border:"none",color:"#94a3b8",fontSize:18,cursor:"pointer",padding:0}}>✕</button>
+            </div>
+            {/* 알림 목록 */}
+            <div style={{overflowY:"auto",flex:1}}>
+              {myNotifs.length===0?(
+                <div style={{textAlign:"center",padding:"40px 20px",color:"#94a3b8"}}>
+                  <div style={{fontSize:36,marginBottom:10}}>🔕</div>
+                  <div style={{fontSize:13,fontWeight:600}}>아직 알림이 없어요</div>
+                </div>
+              ):myNotifs.map(function(n){
+                var icon = n.type==="success"?"✅":n.type==="error"?"❌":"ℹ";
+                var bg   = n.is_read?"transparent":"#f8f7ff";
+                var time = new Date(n.created_at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
+                return (
+                  <div key={n.id} style={{padding:"13px 18px",borderBottom:"1px solid #f1f5f9",background:bg,display:"flex",gap:12,alignItems:"flex-start"}}>
+                    <span style={{fontSize:18,flexShrink:0,marginTop:1}}>{icon}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{fontSize:13,fontWeight:n.is_read?400:700,color:"#1e293b",margin:"0 0 4px",lineHeight:1.5}}>{n.message}</p>
+                      <span style={{fontSize:11,color:"#94a3b8"}}>{time}</span>
+                    </div>
+                    {!n.is_read&&<div style={{width:8,height:8,borderRadius:99,background:"#6366f1",flexShrink:0,marginTop:4}}></div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 헤더 */}
       <div style={{background:"linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4338ca 100%)",padding:"22px 20px 36px",position:"relative",overflow:"hidden"}}>
@@ -669,9 +751,14 @@ export default function App() {
             <p style={{color:"rgba(255,255,255,.6)",fontSize:12,margin:0}}>{today.getMonth()+1}월 {today.getDate()}일({DAY_KR[today.getDay()]}) · {user.name} {user.role==="admin"?"관리자":"선생님"}</p>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:7,alignItems:"flex-end"}}>
-            <div onClick={function(){ setTab("mypage"); }} style={{background:"rgba(255,255,255,.13)",border:"1px solid rgba(255,255,255,.18)",borderRadius:14,padding:"9px 14px",textAlign:"center",cursor:"pointer",minWidth:56}}>
-              <div style={{fontSize:20}}>{user.avatar||"👤"}</div>
-              <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:2}}>내 예약</div>
+            {/* 알림 벨 */}
+            <div onClick={function(){ setNotiPanel(function(v){ return !v; }); if(!notiPanel) markAllRead(); }}
+              style={{background:"rgba(255,255,255,.13)",border:"1px solid rgba(255,255,255,.18)",borderRadius:14,padding:"9px 14px",textAlign:"center",cursor:"pointer",minWidth:56,position:"relative"}}>
+              <div style={{fontSize:20}}>🔔</div>
+              <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:2}}>알림</div>
+              {unreadCnt>0&&(
+                <div style={{position:"absolute",top:-4,right:-4,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",animation:"pulse 2s infinite"}}>{unreadCnt}</div>
+              )}
             </div>
             <button onClick={logout} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"6px 10px",color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,cursor:"pointer"}}>로그아웃</button>
           </div>
