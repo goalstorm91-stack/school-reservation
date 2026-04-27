@@ -524,6 +524,17 @@ export default function App() {
     if(user) loadAll();
   }, [user]);
 
+  // 알림 30초마다 자동 갱신
+  useEffect(function(){
+    if(!user) return;
+    var timer = setInterval(function(){
+      sb.get("notifications","select=*&order=created_at.desc&limit=30")
+        .then(function(rows){ setNotifs(rows||[]); })
+        .catch(function(){});
+    }, 30000);
+    return function(){ clearInterval(timer); };
+  }, [user]);
+
   if(!user) return <LoginScreen
     onLogin={function(u){ setUser(u); }}
     onRegister={function(a){ console.log("가입됨",a); }}
@@ -637,6 +648,7 @@ export default function App() {
   function setRF(k){ return function(e){ setRegForm(function(v){ var n=Object.assign({},v); n[k]=e.target.value; return n; }); }; }
 
   function addNotif(recipientName, message, type, reservationId){
+    console.log("알림 생성:", recipientName, message);
     var data = {
       recipient_name: recipientName,
       message: message,
@@ -646,10 +658,17 @@ export default function App() {
     };
     sb.post("notifications", data)
       .then(function(rows){
+        console.log("알림 저장 성공:", rows);
         var n = (rows&&rows[0])||Object.assign({id:Date.now(),created_at:new Date().toISOString()},data);
         setNotifs(function(v){ return [n].concat(v); });
       })
       .catch(function(e){ console.error("알림 저장 오류:",e); });
+  }
+
+  function refreshNotifs(){
+    sb.get("notifications","select=*&order=created_at.desc&limit=30")
+      .then(function(rows){ setNotifs(rows||[]); })
+      .catch(function(){});
   }
 
   function markAllRead(){
@@ -752,7 +771,11 @@ export default function App() {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:7,alignItems:"flex-end"}}>
             {/* 알림 벨 */}
-            <div onClick={function(){ setNotiPanel(function(v){ return !v; }); if(!notiPanel) markAllRead(); }}
+            <div onClick={function(){
+                refreshNotifs();
+                setNotiPanel(function(v){ return !v; });
+                if(!notiPanel) setTimeout(markAllRead, 500);
+              }}
               style={{background:"rgba(255,255,255,.13)",border:"1px solid rgba(255,255,255,.18)",borderRadius:14,padding:"9px 14px",textAlign:"center",cursor:"pointer",minWidth:56,position:"relative"}}>
               <div style={{fontSize:20}}>🔔</div>
               <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:2}}>알림</div>
