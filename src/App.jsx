@@ -2,10 +2,51 @@ import { useState, useEffect, useRef } from "react";
 import QRCodeLib from "qrcode";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  🔑 여기에 Supabase 정보를 입력하세요!
+//  🔑 Supabase 정보
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 var SUPABASE_URL = "https://wfbiovaieuoyrakbvcpq.supabase.co";
 var SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmYmlvdmFpZXVveXJha2J2Y3BxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTc5MTQsImV4cCI6MjA5MjY5MzkxNH0.7aFz4W-Xs13lu2QF7MNSkCYdSWLDjlX38CGPCZxEXEE";
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  📧 EmailJS 정보
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var EMAILJS_SERVICE_ID  = "service_goalstorm91";
+var EMAILJS_TEMPLATE_ID = "template_goalstorm91";
+var EMAILJS_PUBLIC_KEY  = "ES-wwn3_EQ8KgbTJa";
+
+// EmailJS 이메일 발송 함수
+function sendEmail(toEmail, teacherName, facilityName, date, timeSlot, purpose, status) {
+  if(!toEmail) {
+    console.warn("이메일 주소 없음 - 발송 생략");
+    return Promise.resolve();
+  }
+  var templateParams = {
+    to_email:      toEmail,
+    teacher_name:  teacherName,
+    facility_name: facilityName,
+    date:          date,
+    time_slot:     timeSlot,
+    purpose:       purpose,
+    status:        status,
+    is_approved:   status === "승인" ? "true" : "",
+  };
+  return fetch("https://api.emailjs.com/api/v1.0/email/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service_id:  EMAILJS_SERVICE_ID,
+      template_id: EMAILJS_TEMPLATE_ID,
+      user_id:     EMAILJS_PUBLIC_KEY,
+      template_params: templateParams,
+    }),
+  })
+  .then(function(res){
+    if(!res.ok) return res.text().then(function(t){ throw new Error(t); });
+    console.log("이메일 발송 성공:", toEmail);
+    return res.text();
+  })
+  .catch(function(e){ console.error("이메일 발송 오류:", e); });
+}
 
 // ── Supabase API 헬퍼 ────────────────────
 function sbFetch(path, options) {
@@ -171,7 +212,7 @@ function LoginScreen(props) {
   var [showPw,setShowPw]=useState(false);
   var [err,setErr]=useState(""), [loading,setLoading]=useState(false);
   var [autoLogin,setAutoLogin]=useState(false);
-  var [form,setForm]=useState({name:"",id:"",pw:"",pwCheck:"",subject:"",role:"teacher"});
+  var [form,setForm]=useState({name:"",id:"",pw:"",pwCheck:"",subject:"",email:"",role:"teacher"});
   var [showSpw,setShowSpw]=useState(false);
   var [signErr,setSignErr]=useState(""), [done,setDone]=useState(false);
 
@@ -208,6 +249,7 @@ function LoginScreen(props) {
     sb.post("users",{
       login_id:form.id, password:form.pw, name:form.name.trim(),
       role:form.role, subject:form.subject.trim(),
+      email: form.email ? form.email.trim() : null,
       avatar:form.role==="admin"?"🧑":"👩"
     }).then(function(){
       setDone(true); setLoading(false);
@@ -290,10 +332,10 @@ function LoginScreen(props) {
             </div>
           ):(
             <div>
-              {[{l:"이름",k:"name",ph:"홍길동"},{l:"아이디(4자 이상)",k:"id",ph:"사용할 아이디"},{l:"담당 과목",k:"subject",ph:"예: 정보AI, 과학"}].map(function(field){
+              {[{l:"이름",k:"name",ph:"홍길동"},{l:"아이디(4자 이상)",k:"id",ph:"사용할 아이디"},{l:"이메일",k:"email",ph:"예: teacher@school.kr"},{l:"담당 과목",k:"subject",ph:"예: 정보AI, 과학"}].map(function(field){
                 return <div key={field.k} style={{marginBottom:14}}>
-                  <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>{field.l}</label>
-                  <input value={form[field.k]} onChange={setF(field.k)} placeholder={field.ph} style={inputStyle}/>
+                  <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>{field.l}{field.k==="email"&&<span style={{color:"rgba(255,255,255,.35)",fontWeight:400,marginLeft:4}}>(알림 수신용)</span>}</label>
+                  <input type={field.k==="email"?"email":"text"} value={form[field.k]||""} onChange={setF(field.k)} placeholder={field.ph} style={inputStyle}/>
                 </div>;
               })}
               <div style={{marginBottom:14,position:"relative"}}>
@@ -702,28 +744,48 @@ export default function App() {
   }
 
   function approveRes(id, status) {
-    // == 로 느슨한 비교 (숫자/문자열 타입 불일치 방지)
     var target = res.find(function(r){ return r.id == id; });
-    console.log("승인 처리:", id, "target:", target);
+
+    // target 없으면 DB에서 직접 조회 후 처리
+    if(!target){
+      fetch(SUPABASE_URL+"/rest/v1/reservations?id=eq."+id, {
+        headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        var dbTarget = rows&&rows[0];
+        if(dbTarget) processApproval(id, status, dbTarget);
+      }).catch(function(e){ console.error("DB 조회 오류:", e); });
+    }
+
     sb.patch("reservations","id=eq."+id,{status:status})
       .then(function(){
         setRes(function(v){ return v.map(function(r){ return r.id==id ? Object.assign({},r,{status:status}) : r; }); });
         notify(status==="승인" ? "예약이 승인됐어요!" : "예약이 거절됐어요", status==="승인"?"ok":"err");
-        // 알림 생성
-        var recipientName = target ? target.teacher_name : "";
-        var facilityName  = target ? target.facility_name : "";
-        var timeSlot      = target ? target.time_slot : "";
-        if(recipientName){
-          var msg   = status==="승인"
-            ? facilityName+" "+timeSlot+" 예약이 승인됐어요!"
-            : facilityName+" "+timeSlot+" 예약이 거절됐어요.";
-          var ntype = status==="승인" ? "success" : "error";
-          addNotif(recipientName, msg, ntype, id);
-        } else {
-          console.warn("target을 찾지 못해 알림 생성 생략. id:", id, "res:", res.map(function(r){ return r.id; }));
-        }
+        if(target) processApproval(id, status, target);
       })
       .catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
+  function processApproval(id, status, target){
+    // 1. 앱 내 알림
+    var msg = status==="승인"
+      ? target.facility_name+" "+target.time_slot+" 예약이 승인됐어요!"
+      : target.facility_name+" "+target.time_slot+" 예약이 거절됐어요.";
+    addNotif(target.teacher_name, msg, status==="승인"?"success":"error", id);
+
+    // 2. 이메일 발송 — users 테이블에서 이메일 조회 후 발송
+    sb.get("users","select=email&name=eq."+encodeURIComponent(target.teacher_name))
+      .then(function(rows){
+        var email = rows&&rows[0]&&rows[0].email;
+        if(email){
+          sendEmail(email, target.teacher_name, target.facility_name, target.date, target.time_slot, target.purpose, status)
+            .then(function(){ notify("이메일 발송 완료!", "ok"); });
+        } else {
+          console.log("이메일 주소 없음:", target.teacher_name);
+        }
+      })
+      .catch(function(e){ console.error("이메일 조회 오류:", e); });
   }
 
   var allItems = facList.concat(itemList);
@@ -955,13 +1017,43 @@ export default function App() {
         {/* ─ 내 예약 ─ */}
         {!loadingData&&tab==="mypage"&&(
           <div style={{padding:"22px 16px"}}>
-            <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",borderRadius:20,padding:20,marginBottom:20,display:"flex",alignItems:"center",gap:14}}>
+            <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",borderRadius:20,padding:20,marginBottom:16,display:"flex",alignItems:"center",gap:14}}>
               <div style={{width:52,height:52,borderRadius:16,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>{user.avatar||"👤"}</div>
-              <div>
+              <div style={{flex:1,minWidth:0}}>
                 <div style={{color:"white",fontWeight:900,fontSize:17}}>{user.name} {user.role==="admin"?"관리자":"선생님"}</div>
                 <div style={{color:"rgba(255,255,255,.7)",fontSize:12,marginTop:3}}>{user.subject} · 예약 {myR.length}건</div>
+                <div style={{color:"rgba(255,255,255,.6)",fontSize:11,marginTop:3}}>{user.email||"이메일 미등록"}</div>
               </div>
             </div>
+            {/* 이메일 등록/수정 */}
+            {(function(){
+              var [editEmail,setEditEmail]=useState(user.email||"");
+              var [saving,setSaving]=useState(false);
+              function saveEmail(){
+                if(!editEmail.trim()) return;
+                setSaving(true);
+                sb.patch("users","login_id=eq."+user.login_id,{email:editEmail.trim()})
+                  .then(function(){
+                    setUser(function(u){ return Object.assign({},u,{email:editEmail.trim()}); });
+                    setSaving(false);
+                    notify("이메일이 저장됐어요! 📧","ok");
+                  })
+                  .catch(function(){ setSaving(false); notify("저장 오류","err"); });
+              }
+              return (
+                <div style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:18,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                  <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>📧 알림 이메일 주소</label>
+                  <div style={{display:"flex",gap:8}}>
+                    <input type="email" value={editEmail} onChange={function(e){setEditEmail(e.target.value);}} placeholder="이메일을 입력하세요"
+                      style={{flex:1,background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"sans-serif",color:"#1e293b"}}/>
+                    <button onClick={saveEmail} disabled={saving} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+                      {saving?"저장 중...":"저장"}
+                    </button>
+                  </div>
+                  <p style={{fontSize:11,color:"#94a3b8",margin:"6px 0 0"}}>예약 승인·거절 시 이 이메일로 알림이 발송돼요</p>
+                </div>
+              );
+            })()}
             <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 16px"}}>📋 내 예약 목록</h2>
             {myR.length===0
               ?<div style={{textAlign:"center",padding:"52px 0",color:"#94a3b8",background:"white",borderRadius:20,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}><div style={{fontSize:42,marginBottom:12}}>📭</div><div style={{fontSize:14,fontWeight:600}}>예약 내역이 없어요</div></div>
