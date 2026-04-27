@@ -376,7 +376,7 @@ export default function App() {
     var targetDate = book.date||fmtDate(today,0);
     var targetTime = book.time||TIME_SLOTS[0];
 
-    // ── 중복 체크 1: 로컬 상태에서 즉시 확인 ──
+    // ── 중복 체크 1: 로컬 상태 즉시 확인 ──
     var localDup = res.find(function(r){
       return r.facility_name===item.name
         && r.date===targetDate
@@ -384,7 +384,7 @@ export default function App() {
         && r.status!=="거절";
     });
     if(localDup){
-      notify(item.name+" "+targetTime+"은 이미 예약됐어요!", "err");
+      notify("["+targetTime+"] "+item.name+"은 이미 "+localDup.status+" 상태예요!", "err");
       return;
     }
 
@@ -398,15 +398,19 @@ export default function App() {
       status: "대기",
     };
 
-    // ── 중복 체크 2: DB에서 재확인 후 저장 (동시 신청 방지) ──
+    // ── 중복 체크 2: DB에서 전체 조회 후 JS로 필터 (한글 인코딩 문제 우회) ──
     sb.get("reservations",
-      "select=id&facility_name=eq."+encodeURIComponent(item.name)+
+      "select=id,status,facility_name,date,time_slot"+
+      "&facility_name=eq."+encodeURIComponent(item.name)+
       "&date=eq."+encodeURIComponent(targetDate)+
-      "&time_slot=eq."+encodeURIComponent(targetTime)+
-      "&status=neq.거절"
+      "&time_slot=eq."+encodeURIComponent(targetTime)
     ).then(function(rows){
-      if(rows && rows.length > 0){
-        notify(item.name+" "+targetTime+"은 이미 예약됐어요!", "err");
+      var dup = (rows||[]).find(function(r){
+        return r.status==="대기" || r.status==="승인";
+      });
+      if(dup){
+        loadAll();
+        notify("["+targetTime+"] "+item.name+"은 이미 "+dup.status+" 상태예요!", "err");
         return;
       }
       sb.post("reservations", data)
@@ -417,7 +421,7 @@ export default function App() {
           notify(item.name+" 예약 신청 완료! 🎉");
         })
         .catch(function(e){ notify("예약 오류: "+e.message,"err"); });
-    }).catch(function(e){ notify("중복 확인 오류: "+e.message,"err"); });
+    }).catch(function(e){ notify("확인 오류: "+e.message,"err"); });
   }
 
   // ── 관리: 시설 등록/수정 ──
@@ -854,14 +858,18 @@ export default function App() {
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:24}}>
                   {TIME_SLOTS.map(function(t){
                     var sel=book.time===t;
-                    var isBooked=res.some(function(r){
+                    var currentDate = book.date||fmtDate(today,0);
+                    var bookedRes = res.find(function(r){
                       return r.facility_name===modal.name
-                        && r.date===(book.date||fmtDate(today,0))
+                        && r.date===currentDate
                         && r.time_slot===t
-                        && r.status!=="거절";
+                        && (r.status==="대기"||r.status==="승인");
                     });
+                    var isBooked = !!bookedRes;
+                    var bookedLabel = isBooked ? (bookedRes.status==="승인"?"확정":"대기") : "";
                     return (
-                      <button key={t} onClick={function(){ if(!isBooked) setBook(function(b){ return Object.assign({},b,{time:t}); }); }}
+                      <button key={t}
+                        onClick={function(){ if(!isBooked) setBook(function(b){ return Object.assign({},b,{time:t}); }); }}
                         disabled={isBooked}
                         style={{
                           background: isBooked?"#f1f5f9": sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",
@@ -869,10 +877,17 @@ export default function App() {
                           border: isBooked?"1.5px solid #e2e8f0": sel?"none":"1.5px solid #e8ecf0",
                           borderRadius:13,padding:"11px 10px",fontSize:12,fontWeight:700,
                           cursor:isBooked?"not-allowed":"pointer",textAlign:"left",
-                          position:"relative",opacity:isBooked?0.7:1,
+                          position:"relative",opacity:isBooked?0.65:1,
                         }}>
                         {t}
-                        {isBooked && <span style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",fontSize:9,background:"#e2e8f0",color:"#94a3b8",padding:"2px 6px",borderRadius:99,fontWeight:800}}>예약됨</span>}
+                        {isBooked && (
+                          <span style={{
+                            position:"absolute",right:7,top:"50%",transform:"translateY(-50%)",
+                            fontSize:9,fontWeight:800,padding:"2px 6px",borderRadius:99,
+                            background:bookedRes.status==="승인"?"#dcfce7":"#fef3c7",
+                            color:bookedRes.status==="승인"?"#16a34a":"#d97706",
+                          }}>{bookedLabel}</span>
+                        )}
                       </button>
                     );
                   })}
