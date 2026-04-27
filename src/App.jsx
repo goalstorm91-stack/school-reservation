@@ -327,8 +327,161 @@ function LoginScreen(props) {
   );
 }
 
+// ── 입실 확인 페이지 (/checkin?id=...) ───
+function CheckInPage() {
+  var params = new URLSearchParams(window.location.search);
+  var resId    = params.get("id");
+  var facility = params.get("facility");
+  var date     = params.get("date");
+  var time     = params.get("time");
+  var teacher  = params.get("teacher");
+
+  var [status, setStatus]   = useState("loading"); // loading | ok | error | notfound
+  var [resData, setResData] = useState(null);
+  var [checkedIn, setCheckedIn] = useState(false);
+
+  useEffect(function(){
+    if(!resId){ setStatus("notfound"); return; }
+    sb.get("reservations","select=*&id=eq."+resId)
+      .then(function(rows){
+        if(!rows||rows.length===0){ setStatus("notfound"); return; }
+        var r = rows[0];
+        setResData(r);
+        if(r.status==="승인") setStatus("ok");
+        else if(r.status==="대기") setStatus("pending");
+        else setStatus("rejected");
+      })
+      .catch(function(){ setStatus("error"); });
+  }, []);
+
+  function doCheckIn(){
+    if(!resData) return;
+    sb.patch("reservations","id=eq."+resData.id,{status:"입실완료"})
+      .then(function(){
+        setCheckedIn(true);
+        setStatus("done");
+      })
+      .catch(function(){ alert("오류가 발생했어요. 다시 시도해주세요."); });
+  }
+
+  var bg = "linear-gradient(145deg,#0f0c29,#302b63,#24243e)";
+
+  return (
+    <div style={{minHeight:"100vh",background:bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 24px",fontFamily:"sans-serif"}}>
+      <style>{CSS}</style>
+
+      {/* 로고 */}
+      <div style={{textAlign:"center",marginBottom:28}}>
+        <div style={{width:60,height:60,borderRadius:20,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,margin:"0 auto 12px"}}>🏫</div>
+        <h1 style={{color:"white",fontSize:18,fontWeight:900,margin:"0 0 4px"}}>소정초등학교</h1>
+        <p style={{color:"rgba(255,255,255,.45)",fontSize:12,margin:0}}>스마트 예약 시스템 · 입실 확인</p>
+      </div>
+
+      <div style={{width:"100%",maxWidth:360,background:"rgba(255,255,255,.08)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,.13)",borderRadius:24,padding:"28px 22px",textAlign:"center"}}>
+
+        {/* 로딩 */}
+        {status==="loading" && (
+          <div style={{padding:"24px 0"}}>
+            <Spinner size={36} label="예약 정보 확인 중..."/>
+          </div>
+        )}
+
+        {/* 승인 완료 - 입실 가능 */}
+        {status==="ok" && !checkedIn && resData && (
+          <div>
+            <div style={{width:64,height:64,borderRadius:20,background:"rgba(16,185,129,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>✅</div>
+            <h2 style={{color:"white",fontSize:20,fontWeight:900,margin:"0 0 20px"}}>입실 가능합니다!</h2>
+            <div style={{background:"rgba(255,255,255,.06)",borderRadius:14,padding:"14px 16px",marginBottom:20,textAlign:"left"}}>
+              {[
+                ["시설",resData.facility_name||facility],
+                ["날짜",resData.date||date],
+                ["교시",resData.time_slot||time],
+                ["선생님",(resData.teacher_name||teacher)+" 선생님"],
+                ["목적",resData.purpose||"-"],
+              ].map(function(kv){
+                return (
+                  <div key={kv[0]} style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13}}>
+                    <span style={{color:"rgba(255,255,255,.45)"}}>{kv[0]}</span>
+                    <span style={{color:"white",fontWeight:700}}>{kv[1]}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={doCheckIn} style={{width:"100%",background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:14,padding:"16px",fontSize:16,fontWeight:900,cursor:"pointer",boxShadow:"0 6px 20px rgba(16,185,129,.4)"}}>
+              입실 확인 완료
+            </button>
+          </div>
+        )}
+
+        {/* 입실 완료 */}
+        {(status==="done"||checkedIn) && (
+          <div style={{padding:"16px 0"}}>
+            <div style={{width:72,height:72,borderRadius:24,background:"rgba(16,185,129,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 14px"}}>🎉</div>
+            <h2 style={{color:"#34d399",fontSize:22,fontWeight:900,margin:"0 0 8px"}}>입실 완료!</h2>
+            <p style={{color:"rgba(255,255,255,.6)",fontSize:14,margin:"0 0 20px",lineHeight:1.7}}>
+              {(resData&&resData.facility_name)||facility}<br/>
+              {(resData&&resData.time_slot)||time} 입실이 확인됐어요
+            </p>
+            <div style={{background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.3)",borderRadius:12,padding:"12px",fontSize:13,color:"#34d399",fontWeight:600}}>
+              입실 시각: {new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}
+            </div>
+          </div>
+        )}
+
+        {/* 대기 중 */}
+        {status==="pending" && (
+          <div style={{padding:"16px 0"}}>
+            <div style={{width:64,height:64,borderRadius:20,background:"rgba(251,191,36,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>⏳</div>
+            <h2 style={{color:"#fbbf24",fontSize:20,fontWeight:900,margin:"0 0 8px"}}>승인 대기 중</h2>
+            <p style={{color:"rgba(255,255,255,.55)",fontSize:13,lineHeight:1.7,margin:0}}>
+              아직 관리자 승인이 완료되지 않았어요.<br/>승인 후 다시 스캔해주세요.
+            </p>
+          </div>
+        )}
+
+        {/* 거절됨 */}
+        {status==="rejected" && (
+          <div style={{padding:"16px 0"}}>
+            <div style={{width:64,height:64,borderRadius:20,background:"rgba(239,68,68,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>❌</div>
+            <h2 style={{color:"#f87171",fontSize:20,fontWeight:900,margin:"0 0 8px"}}>예약 거절됨</h2>
+            <p style={{color:"rgba(255,255,255,.55)",fontSize:13,lineHeight:1.7,margin:0}}>
+              이 예약은 관리자에 의해 거절됐어요.<br/>새로운 예약을 신청해주세요.
+            </p>
+          </div>
+        )}
+
+        {/* 찾을 수 없음 */}
+        {status==="notfound" && (
+          <div style={{padding:"16px 0"}}>
+            <div style={{fontSize:40,marginBottom:14}}>🔍</div>
+            <h2 style={{color:"white",fontSize:18,fontWeight:900,margin:"0 0 8px"}}>예약 정보를 찾을 수 없어요</h2>
+            <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>QR코드가 만료됐거나 잘못된 코드예요.</p>
+          </div>
+        )}
+
+        {/* 오류 */}
+        {status==="error" && (
+          <div style={{padding:"16px 0"}}>
+            <div style={{fontSize:40,marginBottom:14}}>⚠</div>
+            <h2 style={{color:"#fca5a5",fontSize:18,fontWeight:900,margin:"0 0 8px"}}>연결 오류</h2>
+            <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>네트워크를 확인하고 다시 시도해주세요.</p>
+          </div>
+        )}
+
+      </div>
+
+      <button onClick={function(){ window.location.href="/"; }} style={{marginTop:20,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:12,padding:"10px 24px",color:"rgba(255,255,255,.55)",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+        메인으로 돌아가기
+      </button>
+    </div>
+  );
+}
+
 // ── 메인 앱 ──────────────────────────────
 export default function App() {
+  // /checkin 경로면 입실 확인 페이지 표시
+  if(window.location.pathname === "/checkin") return <CheckInPage />;
+
   var [user,setUser]       = useState(savedSession);
   var [tab,setTab]         = useState("home");
   var [facList,setFacList] = useState([]);
