@@ -275,8 +275,8 @@ function LoginScreen(props) {
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(145deg,#0f0c29,#302b63,#24243e)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px 20px 40px",fontFamily:"sans-serif",position:"relative",overflowY:"auto"}}>
       <style>{CSS}</style>
-      <div style={{position:"fixed",top:"10%",left:"15%",width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(99,102,241,.18),transparent 70%)",pointerEvents:"none"}}/>
-      <div style={{position:"fixed",bottom:"15%",right:"10%",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,.15),transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{position:"fixed",top:"10%",left:"15%",width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(99,102,241,.18),transparent 70%)",pointerEvents:"none"}}></div>
+      <div style={{position:"fixed",bottom:"15%",right:"10%",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,.15),transparent 70%)",pointerEvents:"none"}}></div>
 
       <div style={{textAlign:"center",marginBottom:22,animation:"fadeUp .5s ease"}}>
         <div style={{width:70,height:70,borderRadius:22,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,margin:"0 auto 14px",boxShadow:"0 8px 32px rgba(99,102,241,.4)"}}>[학교]</div>
@@ -1640,4 +1640,5 @@ export default function App() {
       )}
     </div>
   );
+    </div>
 }
