@@ -88,9 +88,9 @@ var COLORS_LIST= ["#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#ec4899","#
 var ICONS_FAC  = ["(과학)","(컴)","(도서)","(음악)","(체육)","(미술)","(운동)","(강당)","(과학2)","(수학)"];
 var ICONS_ITEM = ["(태블릿)","(빔)","(VR)","(로봇)","(드론)","(게임)","(카메라)","(배터리)","(기타)","(펜)"];
 var NOTICES    = [
-  { id:1, type:"urgent", icon:"[긴급]", title:"긴급", text:"오늘 오후 과학실 누수로 3~6교시 사용 불가합니다.", date:"오늘" },
-  { id:2, type:"info",   icon:"[공지]", title:"공지", text:"5/15(목) 전 시설 예약이 제한됩니다.", date:"5/12" },
-  { id:3, type:"new",    icon:"[안내]", title:"안내", text:"태블릿 세트 10대 신규 입고되었습니다.", date:"5/10" },
+  { id:1, type:"urgent", icon:"🚨", title:"긴급", text:"오늘 오후 과학실 누수로 3~6교시 사용 불가합니다.", date:"오늘" },
+  { id:2, type:"info",   icon:"📢", title:"공지", text:"5/15(목) 전 시설 예약이 제한됩니다.", date:"5/12" },
+  { id:3, type:"new",    icon:"✨", title:"안내", text:"태블릿 세트 10대 신규 입고되었습니다.", date:"5/10" },
 ];
 var BADGE_CLR  = { urgent:"#ef4444", info:"#60a5fa", new:"#34d399" };
 var savedSession = null;
@@ -167,7 +167,7 @@ function NoticeBanner(props) {
       <div onClick={function(){ setOpen(function(v){ return !v; }); }}
         style={{background:"rgba(255,255,255,.11)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,.22)",borderRadius:open?"16px 16px 0 0":"16px",padding:"11px 16px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
         <div style={{position:"relative",flexShrink:0}}>
-          <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>[목록]</div>
+          <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📋</div>
           {urgent>0&&<span style={{position:"absolute",top:-5,right:-5,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,padding:"2px 5px",animation:"pulse 2s infinite"}}>{urgent}</span>}
         </div>
         <div style={{flex:1,overflow:"hidden",whiteSpace:"nowrap"}}>
@@ -279,7 +279,7 @@ function LoginScreen(props) {
       <div style={{position:"fixed",bottom:"15%",right:"10%",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,.15),transparent 70%)",pointerEvents:"none"}}></div>
 
       <div style={{textAlign:"center",marginBottom:22,animation:"fadeUp .5s ease"}}>
-        <div style={{width:70,height:70,borderRadius:22,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,margin:"0 auto 14px",boxShadow:"0 8px 32px rgba(99,102,241,.4)"}}>[학교]</div>
+        <div style={{width:70,height:70,borderRadius:22,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,margin:"0 auto 14px",boxShadow:"0 8px 32px rgba(99,102,241,.4)"}}>🏫</div>
         <h1 style={{color:"white",fontSize:22,fontWeight:900,margin:"0 0 5px"}}>스마트 예약 시스템</h1>
         <p style={{color:"rgba(255,255,255,.42)",fontSize:12,margin:0}}>소정초등학교 · 시설·교구 통합 예약</p>
       </div>
@@ -305,7 +305,7 @@ function LoginScreen(props) {
               <input type={showPw?"text":"password"} value={pw} onChange={function(e){setPw(e.target.value);setErr("");}} onKeyDown={function(e){if(e.key==="Enter")login();}} placeholder="비밀번호 입력" style={Object.assign({},inputStyle,{paddingRight:46})}/>
               <button onClick={function(){setShowPw(function(v){return !v;});}} style={{position:"absolute",right:14,bottom:14,background:"none",border:"none",color:"rgba(255,255,255,.4)",cursor:"pointer",fontSize:17,padding:0}}>{showPw?"":""}</button>
             </div>
-            {err&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>[경고] {err}</div>}
+            {err&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠️ {err}</div>}
             <div onClick={function(){setAutoLogin(function(v){return !v;});}} style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,cursor:"pointer",userSelect:"none"}}>
               <div style={{width:22,height:22,borderRadius:7,border:"2px solid "+(autoLogin?"#818cf8":"rgba(255,255,255,.25)"),background:autoLogin?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",flexShrink:0}}>
                 {autoLogin&&<span style={{color:"white",fontSize:13,fontWeight:900}}>✓</span>}
@@ -355,7 +355,7 @@ function LoginScreen(props) {
               <div style={{marginBottom:14,position:"relative"}}>
                 <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>비밀번호 확인</label>
                 <input type="password" value={form.pwCheck} onChange={setF("pwCheck")} placeholder="비밀번호 재입력" style={Object.assign({},inputStyle,{paddingRight:46})}/>
-                {form.pwCheck&&<span style={{position:"absolute",right:14,bottom:14,fontSize:16}}>{form.pw===form.pwCheck?"[완료]":"[거절]"}</span>}
+                {form.pwCheck&&<span style={{position:"absolute",right:14,bottom:14,fontSize:16}}>{form.pw===form.pwCheck?"✅":"❌"}</span>}
               </div>
               <div style={{marginBottom:18}}>
                 <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:8}}>역할</label>
@@ -365,7 +365,7 @@ function LoginScreen(props) {
                   })}
                 </div>
               </div>
-              {signErr&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>[경고] {signErr}</div>}
+              {signErr&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠️ {signErr}</div>}
               <button onClick={signup} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:14,padding:15,fontSize:15,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 {loading?<Spinner size={18} label="가입 중..."/>:"회원가입 완료 ✓"}
               </button>
@@ -423,7 +423,7 @@ function CheckInPage() {
 
       {/* 로고 */}
       <div style={{textAlign:"center",marginBottom:28}}>
-        <div style={{width:60,height:60,borderRadius:20,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,margin:"0 auto 12px"}}>[학교]</div>
+        <div style={{width:60,height:60,borderRadius:20,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,margin:"0 auto 12px"}}>🏫</div>
         <h1 style={{color:"white",fontSize:18,fontWeight:900,margin:"0 0 4px"}}>소정초등학교</h1>
         <p style={{color:"rgba(255,255,255,.45)",fontSize:12,margin:0}}>스마트 예약 시스템 · 입실 확인</p>
       </div>
@@ -440,7 +440,7 @@ function CheckInPage() {
         {/* 승인 완료 - 입실 가능 */}
         {status==="ok" && !checkedIn && resData && (
           <div>
-            <div style={{width:64,height:64,borderRadius:20,background:"rgba(16,185,129,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>[완료]</div>
+            <div style={{width:64,height:64,borderRadius:20,background:"rgba(16,185,129,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>✅</div>
             <h2 style={{color:"white",fontSize:20,fontWeight:900,margin:"0 0 20px"}}>입실 가능합니다!</h2>
             <div style={{background:"rgba(255,255,255,.06)",borderRadius:14,padding:"14px 16px",marginBottom:20,textAlign:"left"}}>
               {[
@@ -482,7 +482,7 @@ function CheckInPage() {
         {/* 대기 중 */}
         {status==="pending" && (
           <div style={{padding:"16px 0"}}>
-            <div style={{width:64,height:64,borderRadius:20,background:"rgba(251,191,36,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>[대기]</div>
+            <div style={{width:64,height:64,borderRadius:20,background:"rgba(251,191,36,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>⏳</div>
             <h2 style={{color:"#fbbf24",fontSize:20,fontWeight:900,margin:"0 0 8px"}}>승인 대기 중</h2>
             <p style={{color:"rgba(255,255,255,.55)",fontSize:13,lineHeight:1.7,margin:0}}>
               아직 관리자 승인이 완료되지 않았어요.<br/>승인 후 다시 스캔해주세요.
@@ -493,7 +493,7 @@ function CheckInPage() {
         {/* 거절됨 */}
         {status==="rejected" && (
           <div style={{padding:"16px 0"}}>
-            <div style={{width:64,height:64,borderRadius:20,background:"rgba(239,68,68,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>[거절]</div>
+            <div style={{width:64,height:64,borderRadius:20,background:"rgba(239,68,68,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 14px"}}>❌</div>
             <h2 style={{color:"#f87171",fontSize:20,fontWeight:900,margin:"0 0 8px"}}>예약 거절됨</h2>
             <p style={{color:"rgba(255,255,255,.55)",fontSize:13,lineHeight:1.7,margin:0}}>
               이 예약은 관리자에 의해 거절됐어요.<br/>새로운 예약을 신청해주세요.
@@ -504,7 +504,7 @@ function CheckInPage() {
         {/* 찾을 수 없음 */}
         {status==="notfound" && (
           <div style={{padding:"16px 0"}}>
-            <div style={{fontSize:40,marginBottom:14}}>[검색]</div>
+            <div style={{fontSize:40,marginBottom:14}}>🔍</div>
             <h2 style={{color:"white",fontSize:18,fontWeight:900,margin:"0 0 8px"}}>예약 정보를 찾을 수 없어요</h2>
             <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>QR코드가 만료됐거나 잘못된 코드예요.</p>
           </div>
@@ -513,7 +513,7 @@ function CheckInPage() {
         {/* 오류 */}
         {status==="error" && (
           <div style={{padding:"16px 0"}}>
-            <div style={{fontSize:40,marginBottom:14}}>[경고]</div>
+            <div style={{fontSize:40,marginBottom:14}}>⚠️</div>
             <h2 style={{color:"#fca5a5",fontSize:18,fontWeight:900,margin:"0 0 8px"}}>연결 오류</h2>
             <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>네트워크를 확인하고 다시 시도해주세요.</p>
           </div>
@@ -555,10 +555,10 @@ export default function App() {
   var [showMoreDates,setShowMoreDates] = useState(false);
   var [calMonth,setCalMonth]           = useState(0);
   var [notices,setNotices]             = useState([
-    { id:1, type:"urgent", icon:"[긴급]", title:"긴급", text:"오늘 오후 과학실 누수로 3~6교시 사용 불가합니다.", date:"오늘" },
-    { id:2, type:"info",   icon:"[공지]", title:"공지", text:"5/15(목) 전 시설 예약이 제한됩니다.", date:"5/12" },
-    { id:3, type:"new",    icon:"[안내]", title:"안내", text:"태블릿 세트 10대 신규 입고되었습니다.", date:"5/10" },
-    { id:4, type:"info",   icon:"[점검]", title:"점검", text:"매주 금요일 오후 컴퓨터실 정기 점검이 있습니다.", date:"상시" },
+    { id:1, type:"urgent", icon:"🚨", title:"긴급", text:"오늘 오후 과학실 누수로 3~6교시 사용 불가합니다.", date:"오늘" },
+    { id:2, type:"info",   icon:"📢", title:"공지", text:"5/15(목) 전 시설 예약이 제한됩니다.", date:"5/12" },
+    { id:3, type:"new",    icon:"✨", title:"안내", text:"태블릿 세트 10대 신규 입고되었습니다.", date:"5/10" },
+    { id:4, type:"info",   icon:"🔧", title:"점검", text:"매주 금요일 오후 컴퓨터실 정기 점검이 있습니다.", date:"상시" },
   ]);
   var [noticeModal,setNoticeModal]     = useState(null); // 0=이번달, 1=다음달...
 
@@ -681,7 +681,7 @@ export default function App() {
           .catch(function(e){ notify("오류: "+e.message,"err"); });
       } else {
         sb.post("facilities",fData)
-          .then(function(rows){ var r=(rows&&rows[0])||Object.assign({id:Date.now()},fData); setFacList(function(v){ return v.concat([r]); }); notify(fData.name+" 등록 완료! [학교]"); setRegModal(null); })
+          .then(function(rows){ var r=(rows&&rows[0])||Object.assign({id:Date.now()},fData); setFacList(function(v){ return v.concat([r]); }); notify(fData.name+" 등록 완료! 🏫"); setRegModal(null); })
           .catch(function(e){ notify("오류: "+e.message,"err"); });
       }
     } else {
@@ -693,7 +693,7 @@ export default function App() {
           .catch(function(e){ notify("오류: "+e.message,"err"); });
       } else {
         sb.post("items",iData)
-          .then(function(rows){ var r=(rows&&rows[0])||Object.assign({id:Date.now()},iData); setItemList(function(v){ return v.concat([r]); }); notify(iData.name+" 등록 완료! [교구]"); setRegModal(null); })
+          .then(function(rows){ var r=(rows&&rows[0])||Object.assign({id:Date.now()},iData); setItemList(function(v){ return v.concat([r]); }); notify(iData.name+" 등록 완료! 📦"); setRegModal(null); })
           .catch(function(e){ notify("오류: "+e.message,"err"); });
       }
     }
@@ -833,8 +833,8 @@ export default function App() {
   var myNotifs = notifs.filter(function(n){ return n.recipient_name===user.name; });
   var unreadCnt= myNotifs.filter(function(n){ return !n.is_read; }).length;
 
-  var TABS=[["home","","홈"],["facilities","[학교]","시설"],["items","[교구]","교구"],["mypage","[목록]","내 예약"]];
-  if(user.role==="admin") TABS.push(["manage","[관리]","관리"]);
+  var TABS=[["home","","홈"],["facilities","🏫","시설"],["items","📦","교구"],["mypage","📋","내 예약"]];
+  if(user.role==="admin") TABS.push(["manage","⚙️","관리"]);
 
   return (
     <div style={{fontFamily:"sans-serif",minHeight:"100vh",background:"#f5f7fa",color:"#1e293b",maxWidth:430,margin:"0 auto",position:"relative",boxShadow:"0 0 60px rgba(0,0,0,.14)"}}>
@@ -849,7 +849,7 @@ export default function App() {
             {/* 패널 헤더 */}
             <div style={{padding:"16px 18px 12px",borderBottom:"1px solid #e8ecf0",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:18}}>[알림]</span>
+                <span style={{fontSize:18}}>🔔</span>
                 <span style={{fontWeight:800,fontSize:15,color:"#1e293b"}}>알림</span>
                 {unreadCnt>0&&<span style={{background:"#ef4444",color:"white",fontSize:10,fontWeight:900,borderRadius:99,padding:"2px 7px"}}>{unreadCnt}</span>}
               </div>
@@ -859,11 +859,11 @@ export default function App() {
             <div style={{overflowY:"auto",flex:1}}>
               {myNotifs.length===0?(
                 <div style={{textAlign:"center",padding:"40px 20px",color:"#94a3b8"}}>
-                  <div style={{fontSize:36,marginBottom:10}}>[무음]</div>
+                  <div style={{fontSize:36,marginBottom:10}}>🔕</div>
                   <div style={{fontSize:13,fontWeight:600}}>아직 알림이 없어요</div>
                 </div>
               ):myNotifs.map(function(n){
-                var icon = n.type==="success"?"[완료]":n.type==="error"?"[거절]":"[정보]";
+                var icon = n.type==="success"?"✅":n.type==="error"?"❌":"ℹ️";
                 var bg   = n.is_read?"transparent":"#f8f7ff";
                 var time = new Date(n.created_at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
                 return (
@@ -887,7 +887,7 @@ export default function App() {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",position:"relative"}}>
           <div>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <div style={{width:28,height:28,borderRadius:9,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>[학교]</div>
+              <div style={{width:28,height:28,borderRadius:9,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>🏫</div>
               <p style={{color:"rgba(255,255,255,.55)",fontSize:12,margin:0,fontWeight:600}}>소정초등학교</p>
             </div>
             <h1 style={{color:"white",fontSize:20,fontWeight:900,margin:"0 0 6px"}}>스마트 예약 시스템</h1>
@@ -901,7 +901,7 @@ export default function App() {
                 if(!notiPanel) setTimeout(markAllRead, 500);
               }}
               style={{background:"rgba(255,255,255,.13)",border:"1px solid rgba(255,255,255,.18)",borderRadius:14,padding:"9px 14px",textAlign:"center",cursor:"pointer",minWidth:56,position:"relative"}}>
-              <div style={{fontSize:20}}>[알림]</div>
+              <div style={{fontSize:20}}>🔔</div>
               <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:2}}>알림</div>
               {unreadCnt>0&&(
                 <div style={{position:"absolute",top:-4,right:-4,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",animation:"pulse 2s infinite"}}>{unreadCnt}</div>
@@ -1015,7 +1015,7 @@ export default function App() {
         {/* ─ 시설 ─ */}
         {!loadingData&&tab==="facilities"&&(
           <div style={{padding:"22px 16px"}}>
-            <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 18px"}}>[학교] 특별실 예약</h2>
+            <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 18px"}}>🏫 특별실 예약</h2>
             {facList.map(function(f){
               return <div key={f.id} onClick={function(){ setModal(f); setStep(0); }} style={{background:"white",borderRadius:20,padding:18,marginBottom:12,display:"flex",gap:16,cursor:"pointer",boxShadow:"0 2px 10px rgba(0,0,0,.06)",borderLeft:"5px solid "+f.color}}>
                 <div style={{width:54,height:54,borderRadius:16,background:f.color+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:27,flexShrink:0}}>{f.icon}</div>
@@ -1074,7 +1074,7 @@ export default function App() {
               </div>
               <p style={{fontSize:11,color:"#94a3b8",margin:"6px 0 0"}}>예약 승인·거절 시 이 이메일로 알림이 발송돼요</p>
             </div>
-            <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 16px"}}>[목록] 내 예약 목록</h2>
+            <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 16px"}}>📋 내 예약 목록</h2>
             {myR.length===0
               ?<div style={{textAlign:"center",padding:"52px 0",color:"#94a3b8",background:"white",borderRadius:20,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}><div style={{fontSize:42,marginBottom:12}}></div><div style={{fontSize:14,fontWeight:600}}>예약 내역이 없어요</div></div>
               :myR.map(function(r){
@@ -1104,7 +1104,7 @@ export default function App() {
 
             {/* 승인 대기 섹션 */}
             <div style={{background:"linear-gradient(135deg,#d97706,#f59e0b)",borderRadius:18,padding:"16px 18px",marginBottom:6,display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{fontSize:26}}>[목록]</div>
+              <div style={{fontSize:26}}>📋</div>
               <div style={{flex:1}}>
                 <div style={{color:"white",fontWeight:900,fontSize:15}}>예약 승인 관리</div>
                 <div style={{color:"rgba(255,255,255,.75)",fontSize:12,marginTop:2}}>대기 중인 예약을 승인하거나 거절하세요</div>
@@ -1133,10 +1133,10 @@ export default function App() {
                   </div>
 
                   {/* 대기 중인 예약 목록 */}
-                  <h2 style={{fontSize:14,fontWeight:800,margin:"0 0 12px",color:"#374151"}}>[대기] 대기 중인 예약</h2>
+                  <h2 style={{fontSize:14,fontWeight:800,margin:"0 0 12px",color:"#374151"}}>⏳ 대기 중인 예약</h2>
                   {pendingR.length===0
                     ? <div style={{background:"white",borderRadius:16,padding:"28px",textAlign:"center",color:"#94a3b8",marginBottom:24,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-                        <div style={{fontSize:32,marginBottom:8}}>[완료]</div>
+                        <div style={{fontSize:32,marginBottom:8}}>✅</div>
                         <div style={{fontSize:13,fontWeight:600}}>대기 중인 예약이 없어요</div>
                       </div>
                     : pendingR.map(function(r){
@@ -1192,14 +1192,14 @@ export default function App() {
 
             {/* 시설·교구 관리 */}
             <div style={{background:"linear-gradient(135deg,#4338ca,#6366f1)",borderRadius:18,padding:"16px 18px",marginBottom:22,display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{fontSize:26}}>[관리]</div>
+              <div style={{fontSize:26}}>⚙️</div>
               <div>
                 <div style={{color:"white",fontWeight:900,fontSize:15}}>시설·교구 관리</div>
                 <div style={{color:"rgba(255,255,255,.65)",fontSize:12,marginTop:2}}>Supabase DB에 실시간 저장됩니다</div>
               </div>
             </div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>[학교] 특별실 관리</h2>
+              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>🏫 특별실 관리</h2>
               <button onClick={function(){ openReg("facility"); }} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 시설</button>
             </div>
             {facList.map(function(f){
@@ -1216,7 +1216,7 @@ export default function App() {
               </div>;
             })}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"24px 0 12px"}}>
-              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>[교구] 교구·기기 관리</h2>
+              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📦 교구·기기 관리</h2>
               <button onClick={function(){ openReg("item"); }} style={{background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 교구</button>
             </div>
             {itemList.map(function(item){
@@ -1236,8 +1236,8 @@ export default function App() {
             {/* ─ 공지사항 관리 ─ */}
             <div style={{height:1,background:"#e2e8f0",margin:"24px 0"}}></div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>[공지] 공지사항 관리</h2>
-              <button onClick={function(){ setNoticeModal({mode:"add",data:{title:"공지",text:"",type:"info",icon:"[공지]",date:fmtDate(today,0)}}); }}
+              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📢 공지사항 관리</h2>
+              <button onClick={function(){ setNoticeModal({mode:"add",data:{title:"공지",text:"",type:"info",icon:"📢",date:fmtDate(today,0)}}); }}
                 style={{background:"linear-gradient(135deg,#0ea5e9,#0284c7)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 공지</button>
             </div>
             {notices.length===0
@@ -1449,7 +1449,7 @@ export default function App() {
             {qr.status==="승인" ? (
               <div>
                 <div style={{background:"#dcfce7",border:"1px solid #86efac",borderRadius:12,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                  <span style={{color:"#16a34a",fontWeight:800,fontSize:13}}>[완료] 승인 완료 · 입실 QR코드</span>
+                  <span style={{color:"#16a34a",fontWeight:800,fontSize:13}}>✅ 승인 완료 · 입실 QR코드</span>
                 </div>
                 <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
                   <QRCode
@@ -1465,10 +1465,10 @@ export default function App() {
             ) : (
               <div>
                 <div style={{background:"#fef3c7",border:"1px solid #fcd34d",borderRadius:12,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                  <span style={{color:"#d97706",fontWeight:800,fontSize:13}}>[대기] 관리자 승인 대기 중</span>
+                  <span style={{color:"#d97706",fontWeight:800,fontSize:13}}>⏳ 관리자 승인 대기 중</span>
                 </div>
                 <div style={{background:"#f8fafc",borderRadius:16,padding:"32px 20px",marginBottom:16,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
-                  <div style={{fontSize:36}}>[잠금]</div>
+                  <div style={{fontSize:36}}>🔒</div>
                   <p style={{fontSize:12,color:"#94a3b8",margin:0,lineHeight:1.7}}>승인 후 QR코드가 생성됩니다<br/>관리자의 승인을 기다려주세요</p>
                 </div>
               </div>
@@ -1546,7 +1546,7 @@ export default function App() {
       {delConfirm&&(
         <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.6)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={function(){ setDelConfirm(null); }}>
           <div style={{background:"white",borderRadius:24,padding:"32px 26px",width:"100%",maxWidth:320,animation:"popIn .28s ease",textAlign:"center"}} onClick={function(e){ e.stopPropagation(); }}>
-            <div style={{fontSize:44,marginBottom:12}}>[삭제]</div>
+            <div style={{fontSize:44,marginBottom:12}}>🗑️</div>
             <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 10px"}}>정말 삭제할까요?</h3>
             <p style={{color:"#64748b",fontSize:14,margin:"0 0 4px"}}><strong>{delConfirm.item.name}</strong>을 삭제합니다.</p>
             <p style={{color:"#94a3b8",fontSize:12,margin:"0 0 24px"}}>삭제하면 복구할 수 없어요</p>
@@ -1565,13 +1565,13 @@ export default function App() {
           <div style={{background:"white",borderRadius:"26px 26px 0 0",padding:"28px 24px 44px",width:"100%",maxWidth:430,animation:"slideUp .32s ease",maxHeight:"88vh",overflowY:"auto"}}
             onClick={function(e){ e.stopPropagation(); }}>
             <div style={{width:42,height:5,background:"#e2e8f0",borderRadius:99,margin:"0 auto 22px"}}/>
-            <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 20px"}}>{noticeModal.mode==="add"?"[공지] 새 공지 등록":" 공지 수정"}</h3>
+            <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 20px"}}>{noticeModal.mode==="add"?"📢 새 공지 등록":" 공지 수정"}</h3>
 
             {/* 유형 선택 */}
             <div style={{marginBottom:14}}>
               <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>유형</label>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                {[["urgent","[긴급]","긴급"],["info","[공지]","공지"],["new","[안내]","안내"]].map(function(item){
+                {[["urgent","🚨","긴급"],["info","📢","공지"],["new","✨","안내"]].map(function(item){
                   var sel=noticeModal.data.type===item[0];
                   return <button key={item[0]} onClick={function(){ setNoticeModal(function(v){ return Object.assign({},v,{data:Object.assign({},v.data,{type:item[0],icon:item[1],title:item[2]})}); }); }}
                     style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f8fafc",color:sel?"white":"#374151",border:sel?"none":"1.5px solid #e8ecf0",borderRadius:12,padding:"10px 6px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
@@ -1607,7 +1607,7 @@ export default function App() {
 
             {/* 미리보기 */}
             <div style={{background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:14,padding:"12px 16px",marginBottom:20,display:"flex",gap:10,alignItems:"flex-start"}}>
-              <span style={{fontSize:18,flexShrink:0}}>{noticeModal.data.icon||"[공지]"}</span>
+              <span style={{fontSize:18,flexShrink:0}}>{noticeModal.data.icon||"📢"}</span>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
                   <span style={{background:BADGE_CLR[noticeModal.data.type]||"#60a5fa",color:"white",fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:99}}>{noticeModal.data.title||"공지"}</span>
