@@ -1148,7 +1148,7 @@ export default function App() {
                                 <div style={{fontWeight:800,fontSize:14,marginBottom:3}}>{r.facility_name}</div>
                                 <div style={{fontSize:12,color:"#64748b"}}>{r.date} · {r.time_slot}</div>
                                 <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{r.teacher_name} 선생님</div>
-                                <div style={{fontSize:12,color:"#64748b",marginTop:2,background:"#f8fafc",borderRadius:8,padding:"4px 8px",marginTop:6}}>{r.purpose}</div>
+                                <div style={{fontSize:12,color:"#64748b",marginTop:6,background:"#f8fafc",borderRadius:8,padding:"4px 8px"}}>{r.purpose}</div>
                               </div>
                               <span style={{background:"#fef3c7",color:"#d97706",padding:"4px 10px",borderRadius:99,fontSize:11,fontWeight:800,flexShrink:0}}>대기</span>
                             </div>
