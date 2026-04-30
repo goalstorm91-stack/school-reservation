@@ -115,7 +115,8 @@ var CSS = [
   "@keyframes slideLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}",
   "@keyframes slideRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}",
   "input:focus,textarea:focus{outline:none;border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,.18)!important}",
-  "::-webkit-scrollbar{display:none}","body,*{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}","@supports (font: emoji){*{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Emoji','Apple Color Emoji','Segoe UI',sans-serif}}","
+  "::-webkit-scrollbar{display:none}",
+  "body,*{font-family:-apple-system,BlinkMacSystemFont,sans-serif}",
   ".dark-mode{background:#0f172a!important;color:#e2e8f0!important}",
   ".dark-mode .card{background:#1e293b!important;border-color:#334155!important}",
 ].join("");
