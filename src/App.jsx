@@ -981,7 +981,8 @@ export default function App() {
   var myNotifs = notifs.filter(function(n){ return n.recipient_name===user.name; });
   var unreadCnt= myNotifs.filter(function(n){ return !n.is_read; }).length;
 
-  var TABS=[["home","","홈"],["facilities","🏫","시설"],["items","📦","교구"],["mypage","📋","내 예약"]];
+  var HOME_ICON = String.fromCodePoint(127968) + "\uFE0F";
+  var TABS=[["home",HOME_ICON,"홈"],["facilities","🏫","시설"],["items","📦","교구"],["mypage","📋","내 예약"]];
   if(user.role==="admin") TABS.push(["manage","⚙","관리"]);
 
   return (
