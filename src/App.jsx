@@ -1089,7 +1089,7 @@ export default function App() {
           <div style={{paddingBottom:8}}>
             <div style={{padding:"20px 16px 0"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>🗓 이번 주 예약</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>&#128198; 이번 주 예약</h2>
                 <span style={{color:"#94a3b8",fontSize:11,fontWeight:600}}>{today.getMonth()+1}월</span>
               </div>
               <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:22}}>
@@ -1121,26 +1121,24 @@ export default function App() {
                 <h2 style={{fontSize:15,fontWeight:800,margin:0}}>&#9889; 빠른 예약</h2>
                 <span onClick={function(){ setTab("facilities"); }} style={{color:"#6366f1",fontSize:12,fontWeight:700,cursor:"pointer"}}>전체 보기 →</span>
               </div>
-            </div>
-            <div style={{overflowX:"auto",paddingLeft:16,paddingBottom:4,marginBottom:22,display:"flex",gap:12}}>
-              {facList.map(function(f){
-                var bookedToday=res.filter(function(r){ return r.facility_name===f.name&&r.date===todayStr&&r.status==="승인"; });
-                var isBusy=bookedToday.length>=3;
-                var statusLabel=isBusy?"오늘 마감":"예약 가능";
-                var statusBg=isBusy?"#fef3c7":"#dcfce7";
-                var statusColor=isBusy?"#d97706":"#16a34a";
-                return (
-                  <div key={f.id} onClick={function(){ setModal(f); setStep(0); }}
-                    style={{background:"white",borderRadius:18,padding:"16px 14px",cursor:"pointer",boxShadow:"0 2px 12px rgba(0,0,0,.08)",flexShrink:0,width:140,borderTop:"4px solid "+f.color,position:"relative"}}>
-                    <div style={{position:"absolute",top:10,right:10,background:statusBg,color:statusColor,fontSize:9,fontWeight:800,padding:"3px 7px",borderRadius:99}}>{statusLabel}</div>
-                    <div style={{width:40,height:40,borderRadius:12,background:f.color+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:10}}>{f.icon}</div>
-                    <div style={{fontWeight:800,fontSize:13,marginBottom:3,lineHeight:1.3}}>{f.name}</div>
-                    <div style={{fontSize:10,color:"#94a3b8"}}>{f.floor}</div>
-                    <div style={{fontSize:10,color:"#94a3b8"}}>{f.capacity}명 수용</div>
-                  </div>
-                );
-              })}
-              <div style={{flexShrink:0,width:4}}></div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:22}}>
+                {facList.map(function(f){
+                  var bookedToday=res.filter(function(r){ return r.facility_name===f.name&&r.date===todayStr&&r.status==="승인"; });
+                  var isBusy=bookedToday.length>=3;
+                  var statusLabel=isBusy?"오늘 마감":"예약 가능";
+                  var statusBg=isBusy?"#fef3c7":"#dcfce7";
+                  var statusColor=isBusy?"#d97706":"#16a34a";
+                  return (
+                    <div key={f.id} onClick={function(){ setModal(f); setStep(0); }}
+                      style={{background:"white",borderRadius:18,padding:"14px 12px",cursor:"pointer",boxShadow:"0 2px 12px rgba(0,0,0,.08)",borderTop:"4px solid "+f.color,position:"relative"}}>
+                      <div style={{position:"absolute",top:10,right:10,background:statusBg,color:statusColor,fontSize:9,fontWeight:800,padding:"3px 7px",borderRadius:99}}>{statusLabel}</div>
+                      <div style={{width:38,height:38,borderRadius:11,background:f.color+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,marginBottom:8}}>{f.icon}</div>
+                      <div style={{fontWeight:800,fontSize:13,marginBottom:2,lineHeight:1.3}}>{f.name}</div>
+                      <div style={{fontSize:10,color:"#94a3b8"}}>{f.floor} · {f.capacity}명</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
