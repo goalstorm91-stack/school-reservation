@@ -111,8 +111,13 @@ var CSS = [
   "@keyframes marquee{0%{transform:translateX(105%)}100%{transform:translateX(-105%)}}",
   "@keyframes toastAnim{0%{opacity:0;transform:translateX(-50%) translateY(-14px)}100%{opacity:1;transform:translateX(-50%) translateY(0)}}",
   "@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}",
+  "@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}",
+  "@keyframes slideLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}",
+  "@keyframes slideRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}",
   "input:focus,textarea:focus{outline:none;border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,.18)!important}",
   "::-webkit-scrollbar{display:none}",
+  ".dark-mode{background:#0f172a!important;color:#e2e8f0!important}",
+  ".dark-mode .card{background:#1e293b!important;border-color:#334155!important}",
 ].join("");
 
 // ── 로딩 스피너 ──────────────────────────
@@ -122,6 +127,36 @@ function Spinner(props) {
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:props.full?"60px 0":"0"}}>
       <div style={{width:size,height:size,border:"3px solid #e8ecf0",borderTop:"3px solid #6366f1",borderRadius:"50%",animation:"spin .7s linear infinite"}}></div>
       {props.label && <span style={{marginLeft:10,color:"#94a3b8",fontSize:13,fontWeight:600}}>{props.label}</span>}
+    </div>
+  );
+}
+
+// ── 로딩 스켈레톤 ────────────────────────
+function Skeleton(props) {
+  var dm = props.dark;
+  var base = {
+    background: dm
+      ? "linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%)"
+      : "linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)",
+    backgroundSize:"200% 100%",
+    animation:"shimmer 1.5s infinite",
+    borderRadius: props.r||8,
+  };
+  return <div style={Object.assign({},base,{width:props.w||"100%",height:props.h||16,marginBottom:props.mb||0})}></div>;
+}
+
+function SkeletonCard(props) {
+  var dm = props.dark;
+  var bg = dm?"#1e293b":"white";
+  return (
+    <div style={{background:bg,borderRadius:18,padding:"16px",marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
+      <div style={{display:"flex",gap:12,alignItems:"center"}}>
+        <Skeleton dark={dm} w={50} h={50} r={14}/>
+        <div style={{flex:1}}>
+          <Skeleton dark={dm} h={14} w="70%" mb={8}/>
+          <Skeleton dark={dm} h={11} w="50%"/>
+        </div>
+      </div>
     </div>
   );
 }
@@ -158,44 +193,51 @@ function QRCode(props) {
 
 // ── 공지 배너 ────────────────────────────
 function NoticeBanner(props) {
-  var noticeList = (props.notices && props.notices.length > 0) ? props.notices : NOTICES;
-  var [open,setOpen]=useState(false), [sel,setSel]=useState(null);
-  var urgent=noticeList.filter(function(n){ return n.type==="urgent"; }).length;
-  if(noticeList.length===0) return null;
+  var noticeList = (props.notices && props.notices.length > 0) ? props.notices : [];
+  var [cur,setCur]   = useState(0);
+  var [sel,setSel]   = useState(null);
+  var [anim,setAnim] = useState("slideLeft");
+  var touchX         = useRef(null);
+  if(!noticeList.length) return null;
+  var urgent = noticeList.filter(function(n){ return n.type==="urgent"; }).length;
+
+  function goTo(idx, dir){
+    setAnim(dir||"slideLeft");
+    setCur((idx + noticeList.length) % noticeList.length);
+  }
+  function onTouchStart(e){ touchX.current = e.touches[0].clientX; }
+  function onTouchEnd(e){
+    if(touchX.current===null) return;
+    var dx = e.changedTouches[0].clientX - touchX.current;
+    if(dx < -40) goTo(cur+1,"slideLeft");
+    else if(dx > 40) goTo(cur-1,"slideRight");
+    touchX.current = null;
+  }
+  var n = noticeList[cur];
+  var typeBg = {urgent:"rgba(239,68,68,.18)",info:"rgba(99,102,241,.15)",new:"rgba(52,211,153,.15)"};
   return (
     <div style={{width:"100%",maxWidth:380,marginBottom:14}}>
-      <div onClick={function(){ setOpen(function(v){ return !v; }); }}
-        style={{background:"rgba(255,255,255,.11)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,.22)",borderRadius:open?"16px 16px 0 0":"16px",padding:"11px 16px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
-        <div style={{position:"relative",flexShrink:0}}>
-          <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📋</div>
-          {urgent>0&&<span style={{position:"absolute",top:-5,right:-5,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,padding:"2px 5px",animation:"pulse 2s infinite"}}>{urgent}</span>}
+      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={function(){ setSel(n); }}
+        style={{background:typeBg[n.type]||"rgba(255,255,255,.11)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,.22)",borderRadius:16,padding:"13px 14px",cursor:"pointer",userSelect:"none",position:"relative",overflow:"hidden"}}>
+        {urgent>0&&<div style={{position:"absolute",top:8,right:36,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,padding:"2px 7px",animation:"pulse 2s infinite"}}>{urgent}건 긴급</div>}
+        <div style={{display:"flex",gap:10,alignItems:"center",animation:anim+" .3s ease"}}>
+          <div style={{width:34,height:34,borderRadius:10,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{n.icon}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+              <span style={{background:BADGE_CLR[n.type]||"#60a5fa",color:"white",fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99}}>{n.title}</span>
+              <span style={{color:"rgba(255,255,255,.35)",fontSize:10}}>{n.date}</span>
+            </div>
+            <p style={{color:"rgba(255,255,255,.85)",fontSize:12,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.text}</p>
+          </div>
         </div>
-        <div style={{flex:1,overflow:"hidden",whiteSpace:"nowrap"}}>
-          <span style={{display:"inline-block",animation:"marquee 16s linear infinite",color:"rgba(255,255,255,.88)",fontSize:12,fontWeight:600}}>
-            {noticeList[0].icon} [{noticeList[0].title}] {noticeList[0].text}
-          </span>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:10}}>
+          <button onClick={function(e){e.stopPropagation();goTo(cur-1,"slideRight");}} style={{background:"rgba(255,255,255,.12)",border:"none",borderRadius:99,width:22,height:22,color:"white",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>&#8249;</button>
+          <div style={{display:"flex",gap:5}}>
+            {noticeList.map(function(_,i){ return <div key={i} onClick={function(e){e.stopPropagation();goTo(i,i>cur?"slideLeft":"slideRight");}} style={{width:i===cur?18:6,height:6,borderRadius:99,background:i===cur?"white":"rgba(255,255,255,.3)",transition:"all .3s",cursor:"pointer"}}></div>; })}
+          </div>
+          <button onClick={function(e){e.stopPropagation();goTo(cur+1,"slideLeft");}} style={{background:"rgba(255,255,255,.12)",border:"none",borderRadius:99,width:22,height:22,color:"white",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>&#8250;</button>
         </div>
-        <span style={{color:"rgba(255,255,255,.5)",fontSize:11,transition:"transform .25s",transform:open?"rotate(180deg)":"none",display:"inline-block"}}>▼</span>
       </div>
-      {open&&(
-        <div style={{background:"rgba(10,20,50,.92)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,.1)",borderTop:"none",borderRadius:"0 0 16px 16px",overflow:"hidden"}}>
-          {noticeList.map(function(n,i){
-            return (
-              <div key={n.id} onClick={function(){ setSel(n); }}
-                style={{padding:"12px 16px",borderTop:i?"1px solid rgba(255,255,255,.07)":"none",display:"flex",gap:12,alignItems:"flex-start",cursor:"pointer",background:n.type==="urgent"?"rgba(239,68,68,.07)":"transparent"}}>
-                <span style={{fontSize:17,flexShrink:0}}>{n.icon}</span>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                    <span style={{background:BADGE_CLR[n.type]||"#60a5fa",color:"white",fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99}}>{n.title}</span>
-                    <span style={{color:"rgba(255,255,255,.3)",fontSize:10}}>{n.date}</span>
-                  </div>
-                  <p style={{color:"rgba(255,255,255,.7)",fontSize:12,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.text}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
       {sel&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={function(){ setSel(null); }}>
           <div style={{background:"linear-gradient(160deg,#1e1b4b,#1e3a5f)",borderRadius:24,padding:"32px 26px",width:"100%",maxWidth:340,animation:"popIn .28s ease"}} onClick={function(e){ e.stopPropagation(); }}>
@@ -212,6 +254,7 @@ function NoticeBanner(props) {
     </div>
   );
 }
+
 
 // ── 로그인 / 회원가입 ────────────────────
 function LoginScreen(props) {
@@ -566,6 +609,7 @@ export default function App() {
   var [pwForm,setPwForm]               = useState({current:"",next:"",confirm:""});
   var [repeatMode,setRepeatMode]       = useState(false);
   var [calView,setCalView]             = useState(false);
+  var [darkMode,setDarkMode]           = useState(false);
   var [selectedRes,setSelectedRes]     = useState({});
   var [bulkMode,setBulkMode]           = useState(false);
   var [blockedDates,setBlockedDates]   = useState([]);
@@ -667,7 +711,9 @@ export default function App() {
           var r = (saved&&saved[0]) ? saved[0] : Object.assign({id:Date.now()},data);
           setRes(function(v){ return [r].concat(v); });
           setModal(null); setStep(0); setBook({date:"",time:"",purpose:""});
-          notify(item.name+" 예약 신청 완료! ");
+          notify(item.name+" 예약 신청 완료!");
+          // 예약 완료 직후 QR 바로 보기
+          setQr(r);
         })
         .catch(function(e){ notify("예약 오류: "+e.message,"err"); });
     }).catch(function(e){ notify("확인 오류: "+e.message,"err"); });
@@ -937,7 +983,7 @@ export default function App() {
   if(user.role==="admin") TABS.push(["manage","⚙","관리"]);
 
   return (
-    <div style={{fontFamily:"sans-serif",minHeight:"100vh",background:"#f5f7fa",color:"#1e293b",maxWidth:430,margin:"0 auto",position:"relative",boxShadow:"0 0 60px rgba(0,0,0,.14)"}}>
+    <div style={{fontFamily:"sans-serif",minHeight:"100vh",background:darkMode?"#0f172a":"#f5f7fa",color:darkMode?"#e2e8f0":"#1e293b",maxWidth:430,margin:"0 auto",position:"relative",boxShadow:"0 0 60px rgba(0,0,0,.14)",transition:"background .3s,color .3s"}}>
       <style>{CSS}</style>
 
       {toast&&<div style={{position:"fixed",top:22,left:"50%",transform:"translateX(-50%)",background:toast.type==="ok"?"linear-gradient(135deg,#10b981,#059669)":"#ef4444",color:"white",padding:"13px 26px",borderRadius:99,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",animation:"toastAnim .3s ease"}}>{toast.msg}</div>}
@@ -1007,6 +1053,7 @@ export default function App() {
                 <div style={{position:"absolute",top:-4,right:-4,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",animation:"pulse 2s infinite"}}>{unreadCnt}</div>
               )}
             </div>
+            <button onClick={function(){ setDarkMode(function(v){ return !v; }); }} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"6px 10px",color:"rgba(255,255,255,.7)",fontSize:13,cursor:"pointer"}}>{darkMode?"☀":"🌙"}</button>
             <button onClick={logout} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"6px 10px",color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,cursor:"pointer"}}>로그아웃</button>
           </div>
         </div>
@@ -1021,16 +1068,20 @@ export default function App() {
       </div>
 
       {/* 탭 */}
-      <div style={{background:"white",display:"flex",borderBottom:"1px solid #e8ecf0",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}>
+      <div style={{background:darkMode?"#1e293b":"white",display:"flex",borderBottom:"1px solid "+(darkMode?"#334155":"#e8ecf0"),position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}>
         {TABS.map(function(item){
-          return <button key={item[0]} onClick={function(){ setTab(item[0]); }} style={{flex:1,border:"none",background:"none",padding:"12px 0 10px",cursor:"pointer",borderBottom:tab===item[0]?"2.5px solid #6366f1":"2.5px solid transparent",color:tab===item[0]?"#6366f1":"#94a3b8",fontWeight:tab===item[0]?800:500,fontSize:11,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+          return <button key={item[0]} onClick={function(){ setTab(item[0]); }} style={{flex:1,border:"none",background:"none",padding:"12px 0 10px",cursor:"pointer",borderBottom:tab===item[0]?"2.5px solid #6366f1":"2.5px solid transparent",color:tab===item[0]?"#6366f1":darkMode?"#64748b":"#94a3b8",fontWeight:tab===item[0]?800:500,fontSize:11,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
             <span style={{fontSize:18}}>{item[1]}</span>{item[2]}
           </button>;
         })}
       </div>
 
       <div style={{paddingBottom:80}}>
-        {loadingData&&<Spinner full={true} label="데이터 불러오는 중..."/>}
+        {loadingData&&(
+          <div style={{padding:"20px 16px"}}>
+            {[1,2,3].map(function(i){ return <SkeletonCard key={i} dark={darkMode}/>; })}
+          </div>
+        )}
 
         {/* ─ 홈 ─ */}
         {!loadingData&&tab==="home"&&(
