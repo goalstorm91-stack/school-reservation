@@ -115,7 +115,7 @@ var CSS = [
   "@keyframes slideLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}",
   "@keyframes slideRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}",
   "input:focus,textarea:focus{outline:none;border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,.18)!important}",
-  "::-webkit-scrollbar{display:none}",
+  "::-webkit-scrollbar{display:none}","body,*{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}","@supports (font: emoji){*{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Emoji','Apple Color Emoji','Segoe UI',sans-serif}}","
   ".dark-mode{background:#0f172a!important;color:#e2e8f0!important}",
   ".dark-mode .card{background:#1e293b!important;border-color:#334155!important}",
 ].join("");
@@ -1088,7 +1088,7 @@ export default function App() {
           <div style={{paddingBottom:8}}>
             <div style={{padding:"20px 16px 0"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📆 이번 주 예약</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}><span role="img" aria-label="calendar">📆</span> 이번 주 예약</h2>
                 <span style={{color:"#94a3b8",fontSize:11,fontWeight:600}}>{today.getMonth()+1}월</span>
               </div>
               <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:22}}>
@@ -1117,7 +1117,7 @@ export default function App() {
             </div>
             <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>⚡ 빠른 예약</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}><span role="img" aria-label="lightning">⚡</span> 빠른 예약</h2>
                 <span onClick={function(){ setTab("facilities"); }} style={{color:"#6366f1",fontSize:12,fontWeight:700,cursor:"pointer"}}>전체 보기 →</span>
               </div>
             </div>
@@ -1143,7 +1143,7 @@ export default function App() {
             </div>
             <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📅 오늘의 예약 현황</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}><span role="img" aria-label="date">📅</span> 오늘의 예약 현황</h2>
                 <span style={{background:"#ede9fe",color:"#6366f1",fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:99}}>{todayR.length}건</span>
               </div>
               {todayR.length===0
@@ -1332,7 +1332,7 @@ export default function App() {
           <div style={{padding:"22px 16px"}}>
             {/* 관리자 탭 메뉴 */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:20}}>
-              {[["approval","📋","승인"],["stats","📊","통계"],["block","🚫","차단"],["users","👥","사용자"],["download","📥","다운"],["facility","🏫","시설"],["notice","📢","공지"]].map(function(item){
+              {[["approval","📋","승인"],["stats","📊","통계"],["block","🚫","차단"],["users","👥","사용자"],["download","📥","다운로드"],["facility","🏫","시설"],["notice","📢","공지"]].map(function(item){
                 var sel = adminTab===item[0];
                 return <button key={item[0]} onClick={function(){ setAdminTab(item[0]); }}
                   style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",color:sel?"white":"#64748b",border:"none",borderRadius:12,padding:"10px 6px",fontSize:11,fontWeight:700,cursor:"pointer",boxShadow:sel?"0 4px 14px rgba(99,102,241,.35)":"0 2px 6px rgba(0,0,0,.07)",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
