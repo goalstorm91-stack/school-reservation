@@ -1331,11 +1331,13 @@ export default function App() {
         {!loadingData&&tab==="manage"&&(
           <div style={{padding:"22px 16px"}}>
             {/* 관리자 탭 메뉴 */}
-            <div style={{display:"flex",gap:6,marginBottom:20,overflowX:"auto",paddingBottom:2}}>
-              {[["approval","📋","승인"],["stats","📊","통계"],["block","🚫","차단"],["users","👥","사용자"],["download","📥","다운로드"],["facility","🏫","시설"],["notice","📢","공지"]].map(function(item){
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:20}}>
+              {[["approval","📋","승인"],["stats","📊","통계"],["block","🚫","차단"],["users","👥","사용자"],["download","📥","다운"],["facility","🏫","시설"],["notice","📢","공지"]].map(function(item){
+                var sel = adminTab===item[0];
                 return <button key={item[0]} onClick={function(){ setAdminTab(item[0]); }}
-                  style={{background:adminTab===item[0]?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",color:adminTab===item[0]?"white":"#64748b",border:"none",borderRadius:14,padding:"9px 12px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,boxShadow:adminTab===item[0]?"0 4px 14px rgba(99,102,241,.35)":"0 2px 6px rgba(0,0,0,.07)",display:"flex",alignItems:"center",gap:4}}>
-                  <span style={{fontSize:15}}>{item[1]}</span>{item[2]}
+                  style={{background:sel?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",color:sel?"white":"#64748b",border:"none",borderRadius:12,padding:"10px 6px",fontSize:11,fontWeight:700,cursor:"pointer",boxShadow:sel?"0 4px 14px rgba(99,102,241,.35)":"0 2px 6px rgba(0,0,0,.07)",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                  <span style={{fontSize:18}}>{item[1]}</span>
+                  <span>{item[2]}</span>
                 </button>;
               })}
             </div>
