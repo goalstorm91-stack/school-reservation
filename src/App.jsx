@@ -566,6 +566,15 @@ export default function App() {
   var [pwForm,setPwForm]               = useState({current:"",next:"",confirm:""});
   var [repeatMode,setRepeatMode]       = useState(false);
   var [calView,setCalView]             = useState(false);
+  var [selectedRes,setSelectedRes]     = useState({});
+  var [bulkMode,setBulkMode]           = useState(false);
+  var [blockedDates,setBlockedDates]   = useState([]);
+  var [blockModal,setBlockModal]       = useState(false);
+  var [blockInput,setBlockInput]       = useState("");
+  var [userList,setUserList]           = useState([]);
+  var [userModal,setUserModal]         = useState(false);
+  var [statsView,setStatsView]         = useState(false);
+  var [adminTab,setAdminTab]           = useState("approval");
 
   // ── DB에서 데이터 불러오기 ──
   function loadAll(){
@@ -790,6 +799,66 @@ export default function App() {
         notify(status==="승인" ? "예약이 승인됐어요!" : "예약이 거절됐어요", status==="승인"?"ok":"err");
         if(target) processApproval(id, status, target);
       })
+      .catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
+  // ── 일괄 승인/거절 ──
+  function bulkApprove(status){
+    var ids = Object.keys(selectedRes).filter(function(id){ return selectedRes[id]; });
+    if(!ids.length){ notify("선택된 예약이 없어요","err"); return; }
+    Promise.all(ids.map(function(id){ return sb.patch("reservations","id=eq."+id,{status:status}); }))
+      .then(function(){
+        setRes(function(v){ return v.map(function(r){ return selectedRes[r.id]?Object.assign({},r,{status:status}):r; }); });
+        setSelectedRes({});
+        setBulkMode(false);
+        notify(ids.length+"건 "+status+" 처리 완료!","ok");
+        ids.forEach(function(id){
+          var target=res.find(function(r){ return r.id==id; });
+          if(target) processApproval(id,status,target);
+        });
+      }).catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
+  // ── 예약 내역 CSV 다운로드 ──
+  function downloadCSV(){
+    var headers=["예약ID","시설명","날짜","교시","선생님","목적","상태","신청일"];
+    var rows=res.map(function(r){
+      return [
+        r.id,
+        '"'+( r.facility_name||"")+ '"',
+        '"'+(r.date||"")+ '"',
+        '"'+(r.time_slot||"")+ '"',
+        '"'+(r.teacher_name||"")+ '"',
+        '"'+(r.purpose||"")+ '"',
+        r.status||"",
+        r.created_at ? r.created_at.substring(0,10) : "",
+      ].join(",");
+    });
+    var csv="\uFEFF"+headers.join(",")+"\n"+rows.join("\n");
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url; a.download="예약내역_"+fmtDate(today,0).replace(/[()]/g,"")+".csv";
+    a.click(); URL.revokeObjectURL(url);
+    notify("엑셀 파일 다운로드 완료! 📊","ok");
+  }
+
+  // ── 사용자 목록 불러오기 ──
+  function loadUsers(){
+    sb.get("users","select=*&order=id")
+      .then(function(rows){ setUserList(rows||[]); setUserModal(true); })
+      .catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
+  function deleteUser(id){
+    sb.delete("users","id=eq."+id)
+      .then(function(){ setUserList(function(v){ return v.filter(function(u){ return u.id!==id; }); }); notify("계정이 삭제됐어요","ok"); })
+      .catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
+  function resetUserPw(loginId){
+    sb.patch("users","login_id=eq."+loginId,{password:"1234"})
+      .then(function(){ notify(loginId+" 비밀번호 → 1234 초기화 완료","ok"); })
       .catch(function(e){ notify("오류: "+e.message,"err"); });
   }
 
@@ -1210,174 +1279,278 @@ export default function App() {
         {/* ─ 관리 ─ */}
         {!loadingData&&tab==="manage"&&(
           <div style={{padding:"22px 16px"}}>
-
-            {/* 승인 대기 섹션 */}
-            <div style={{background:"linear-gradient(135deg,#d97706,#f59e0b)",borderRadius:18,padding:"16px 18px",marginBottom:6,display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{fontSize:26}}>📋</div>
-              <div style={{flex:1}}>
-                <div style={{color:"white",fontWeight:900,fontSize:15}}>예약 승인 관리</div>
-                <div style={{color:"rgba(255,255,255,.75)",fontSize:12,marginTop:2}}>대기 중인 예약을 승인하거나 거절하세요</div>
-              </div>
-              <div style={{background:"rgba(255,255,255,.25)",borderRadius:99,padding:"4px 12px",color:"white",fontWeight:900,fontSize:14}}>
-                {res.filter(function(r){ return r.status==="대기"; }).length}건
-              </div>
+            {/* 관리자 탭 메뉴 */}
+            <div style={{display:"flex",gap:6,marginBottom:20,overflowX:"auto",paddingBottom:2}}>
+              {[["approval","📋","승인"],["stats","📊","통계"],["block","🚫","차단"],["users","👥","사용자"],["download","📥","다운로드"],["facility","🏫","시설"],["notice","📢","공지"]].map(function(item){
+                return <button key={item[0]} onClick={function(){ setAdminTab(item[0]); }}
+                  style={{background:adminTab===item[0]?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",color:adminTab===item[0]?"white":"#64748b",border:"none",borderRadius:14,padding:"9px 12px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,boxShadow:adminTab===item[0]?"0 4px 14px rgba(99,102,241,.35)":"0 2px 6px rgba(0,0,0,.07)",display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{fontSize:15}}>{item[1]}</span>{item[2]}
+                </button>;
+              })}
             </div>
 
-            {/* 승인 필터 탭 */}
-            {(function(){
-              var pendingR = res.filter(function(r){ return r.status==="대기"; });
-              var approvedR = res.filter(function(r){ return r.status==="승인"; });
-              var rejectedR = res.filter(function(r){ return r.status==="거절"; });
-              return (
-                <div>
-                  <div style={{display:"flex",gap:8,marginBottom:16,marginTop:12}}>
-                    {[["전체 예약",res.length,"#6366f1"],["대기",pendingR.length,"#d97706"],["승인",approvedR.length,"#16a34a"],["거절",rejectedR.length,"#ef4444"]].map(function(item){
-                      return (
-                        <div key={item[0]} style={{flex:1,background:"white",borderRadius:12,padding:"10px 6px",textAlign:"center",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-                          <div style={{fontSize:18,fontWeight:900,color:item[2]}}>{item[1]}</div>
-                          <div style={{fontSize:10,color:"#94a3b8",marginTop:2,fontWeight:600}}>{item[0]}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* 대기 중인 예약 목록 */}
-                  <h2 style={{fontSize:14,fontWeight:800,margin:"0 0 12px",color:"#374151"}}>⏳ 대기 중인 예약</h2>
-                  {pendingR.length===0
-                    ? <div style={{background:"white",borderRadius:16,padding:"28px",textAlign:"center",color:"#94a3b8",marginBottom:24,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-                        <div style={{fontSize:32,marginBottom:8}}>✅</div>
-                        <div style={{fontSize:13,fontWeight:600}}>대기 중인 예약이 없어요</div>
-                      </div>
-                    : pendingR.map(function(r){
-                        return (
-                          <div key={r.id} style={{background:"white",borderRadius:18,padding:"16px",marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,.07)",borderLeft:"4px solid #f59e0b"}}>
-                            <div style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:12}}>
-                              <div style={{width:44,height:44,borderRadius:13,background:"#fef3c7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{r.icon}</div>
-                              <div style={{flex:1,minWidth:0}}>
-                                <div style={{fontWeight:800,fontSize:14,marginBottom:3}}>{r.facility_name}</div>
-                                <div style={{fontSize:12,color:"#64748b"}}>{r.date} · {r.time_slot}</div>
-                                <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{r.teacher_name} 선생님</div>
-                                <div style={{fontSize:12,color:"#64748b",marginTop:6,background:"#f8fafc",borderRadius:8,padding:"4px 8px"}}>{r.purpose}</div>
-                              </div>
-                              <span style={{background:"#fef3c7",color:"#d97706",padding:"4px 10px",borderRadius:99,fontSize:11,fontWeight:800,flexShrink:0}}>대기</span>
-                            </div>
-                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                              <button onClick={function(){ approveRes(r.id,"거절"); }} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:12,padding:"11px",fontSize:13,fontWeight:800,cursor:"pointer"}}>거절</button>
-                              <button onClick={function(){ approveRes(r.id,"승인"); }} style={{background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:12,padding:"11px",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 12px rgba(16,185,129,.35)"}}>승인 ✓</button>
-                            </div>
-                          </div>
-                        );
-                      })
-                  }
-
-                  {/* 최근 처리된 예약 */}
-                  <h2 style={{fontSize:14,fontWeight:800,margin:"20px 0 12px",color:"#374151"}}> 최근 처리된 예약</h2>
-                  {approvedR.concat(rejectedR).length===0
-                    ? <div style={{background:"white",borderRadius:16,padding:"20px",textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-                        <div style={{fontSize:13,fontWeight:600}}>처리된 예약이 없어요</div>
-                      </div>
-                    : approvedR.concat(rejectedR).slice(0,10).map(function(r){
-                        return (
-                          <div key={r.id} style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,.05)",opacity:0.85}}>
-                            <div style={{width:40,height:40,borderRadius:12,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{r.icon}</div>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontWeight:700,fontSize:13}}>{r.facility_name}</div>
-                              <div style={{fontSize:11,color:"#94a3b8"}}>{r.date} · {r.teacher_name}</div>
-                            </div>
-                            <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-                              <span style={{background:r.status==="승인"?"#dcfce7":"#fee2e2",color:r.status==="승인"?"#16a34a":"#ef4444",padding:"4px 10px",borderRadius:99,fontSize:11,fontWeight:800}}>{r.status}</span>
-                              <button onClick={function(){ approveRes(r.id,"대기"); }} style={{background:"#f1f5f9",color:"#64748b",border:"none",borderRadius:8,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer"}}>되돌리기</button>
-                            </div>
-                          </div>
-                        );
-                      })
-                  }
-                </div>
-              );
-            })()}
-
-            {/* 구분선 */}
-            <div style={{height:1,background:"#e2e8f0",margin:"24px 0"}}></div>
-
-            {/* 시설·교구 관리 */}
-            <div style={{background:"linear-gradient(135deg,#4338ca,#6366f1)",borderRadius:18,padding:"16px 18px",marginBottom:22,display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{fontSize:26}}>⚙</div>
+            {/* 승인 */}
+            {adminTab==="approval"&&(
               <div>
-                <div style={{color:"white",fontWeight:900,fontSize:15}}>시설·교구 관리</div>
-                <div style={{color:"rgba(255,255,255,.65)",fontSize:12,marginTop:2}}>Supabase DB에 실시간 저장됩니다</div>
-              </div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>🏫 특별실 관리</h2>
-              <button onClick={function(){ openReg("facility"); }} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 시설</button>
-            </div>
-            {facList.map(function(f){
-              return <div key={f.id} style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:"4px solid "+f.color}}>
-                <div style={{width:42,height:42,borderRadius:13,background:f.color+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{f.icon}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:800,fontSize:14}}>{f.name}</div>
-                  <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{f.floor} · {f.capacity}명</div>
+                <div style={{display:"flex",gap:8,marginBottom:14}}>
+                  {[["전체",res.length,"#6366f1"],["대기",res.filter(function(r){return r.status==="대기";}).length,"#d97706"],["승인",res.filter(function(r){return r.status==="승인";}).length,"#16a34a"],["거절",res.filter(function(r){return r.status==="거절";}).length,"#ef4444"]].map(function(item){
+                    return <div key={item[0]} style={{flex:1,background:"white",borderRadius:12,padding:"10px 6px",textAlign:"center",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                      <div style={{fontSize:18,fontWeight:900,color:item[2]}}>{item[1]}</div>
+                      <div style={{fontSize:10,color:"#94a3b8",marginTop:2,fontWeight:600}}>{item[0]}</div>
+                    </div>;
+                  })}
                 </div>
-                <div style={{display:"flex",gap:7,flexShrink:0}}>
-                  <button onClick={function(){ openReg("facility",f); }} style={{background:"#ede9fe",color:"#6366f1",border:"none",borderRadius:9,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>수정</button>
-                  <button onClick={function(){ setDelConfirm({type:"facility",item:f}); }} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:9,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>삭제</button>
+                <div style={{display:"flex",gap:7,marginBottom:14}}>
+                  <button onClick={function(){ setBulkMode(function(v){ return !v; }); setSelectedRes({}); }}
+                    style={{flex:1,background:bulkMode?"#ede9fe":"white",color:bulkMode?"#6366f1":"#64748b",border:"1.5px solid "+(bulkMode?"#6366f1":"#e8ecf0"),borderRadius:12,padding:"9px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                    {bulkMode?"선택 취소":"일괄 선택"}
+                  </button>
+                  {bulkMode&&<button onClick={function(){var ids={};res.filter(function(r){return r.status==="대기";}).forEach(function(r){ids[r.id]=true;});setSelectedRes(ids);}} style={{flex:1,background:"#fef3c7",color:"#d97706",border:"none",borderRadius:12,padding:"9px",fontSize:12,fontWeight:700,cursor:"pointer"}}>전체 선택</button>}
+                  {bulkMode&&Object.values(selectedRes).some(Boolean)&&<button onClick={function(){bulkApprove("승인");}} style={{flex:1,background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:12,padding:"9px",fontSize:12,fontWeight:800,cursor:"pointer"}}>일괄 승인</button>}
+                  {bulkMode&&Object.values(selectedRes).some(Boolean)&&<button onClick={function(){bulkApprove("거절");}} style={{flex:1,background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:12,padding:"9px",fontSize:12,fontWeight:800,cursor:"pointer"}}>일괄 거절</button>}
                 </div>
-              </div>;
-            })}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"24px 0 12px"}}>
-              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📦 교구·기기 관리</h2>
-              <button onClick={function(){ openReg("item"); }} style={{background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 교구</button>
-            </div>
-            {itemList.map(function(item){
-              return <div key={item.id} style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:"4px solid "+item.color}}>
-                <div style={{width:42,height:42,borderRadius:13,background:item.color+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{item.icon}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:800,fontSize:14}}>{item.name}</div>
-                  <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{item.category} · 잔여 {item.stock}개</div>
-                </div>
-                <div style={{display:"flex",gap:7,flexShrink:0}}>
-                  <button onClick={function(){ openReg("item",item); }} style={{background:"#ede9fe",color:"#6366f1",border:"none",borderRadius:9,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>수정</button>
-                  <button onClick={function(){ setDelConfirm({type:"item",item:item}); }} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:9,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>삭제</button>
-                </div>
-              </div>;
-            })}
-
-            {/* ─ 공지사항 관리 ─ */}
-            <div style={{height:1,background:"#e2e8f0",margin:"24px 0"}}></div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📢 공지사항 관리</h2>
-              <button onClick={function(){ setNoticeModal({mode:"add",data:{title:"공지",text:"",type:"info",icon:"📢",date:fmtDate(today,0)}}); }}
-                style={{background:"linear-gradient(135deg,#0ea5e9,#0284c7)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 공지</button>
-            </div>
-            {notices.length===0
-              ? <div style={{background:"white",borderRadius:14,padding:"20px",textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 8px rgba(0,0,0,.05)",fontSize:13}}>등록된 공지사항이 없어요</div>
-              : notices.map(function(n){
-                var typeBg={urgent:"#fee2e2",info:"#ede9fe",new:"#dcfce7"};
-                var typeColor={urgent:"#ef4444",info:"#6366f1",new:"#16a34a"};
-                return (
-                  <div key={n.id} style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-                    <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-                      <span style={{fontSize:18,flexShrink:0}}>{n.icon}</span>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                          <span style={{background:typeBg[n.type]||"#f1f5f9",color:typeColor[n.type]||"#64748b",fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:99}}>{n.title}</span>
-                          <span style={{color:"#94a3b8",fontSize:11}}>{n.date}</span>
+                <h3 style={{fontSize:13,fontWeight:800,margin:"0 0 10px",color:"#374151"}}>⏳ 대기 중인 예약</h3>
+                {res.filter(function(r){return r.status==="대기";}).length===0
+                  ?<div style={{background:"white",borderRadius:14,padding:"24px",textAlign:"center",color:"#94a3b8",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}><div style={{fontSize:28,marginBottom:6}}>✅</div><div style={{fontSize:12,fontWeight:600}}>대기 중인 예약이 없어요</div></div>
+                  :res.filter(function(r){return r.status==="대기";}).map(function(r){
+                    return (
+                      <div key={r.id} style={{background:"white",borderRadius:16,padding:"14px",marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,.07)",borderLeft:"4px solid #f59e0b",display:"flex",gap:8}}>
+                        {bulkMode&&<div onClick={function(){setSelectedRes(function(v){var n=Object.assign({},v);n[r.id]=!v[r.id];return n;});}} style={{width:22,height:22,borderRadius:6,border:"2px solid "+(selectedRes[r.id]?"#6366f1":"#d1d5db"),background:selectedRes[r.id]?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer",marginTop:2}}>{selectedRes[r.id]&&<span style={{color:"white",fontSize:12,fontWeight:900}}>✓</span>}</div>}
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:10}}>
+                            <div style={{width:38,height:38,borderRadius:11,background:"#fef3c7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.icon}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontWeight:800,fontSize:13,marginBottom:2}}>{r.facility_name}</div>
+                              <div style={{fontSize:11,color:"#64748b"}}>{r.date} · {r.time_slot} · {r.teacher_name}</div>
+                              <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{r.purpose}</div>
+                            </div>
+                          </div>
+                          {!bulkMode&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+                            <button onClick={function(){approveRes(r.id,"거절");}} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:10,padding:"9px",fontSize:12,fontWeight:800,cursor:"pointer"}}>거절</button>
+                            <button onClick={function(){approveRes(r.id,"승인");}} style={{background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:10,padding:"9px",fontSize:12,fontWeight:800,cursor:"pointer"}}>승인 ✓</button>
+                          </div>}
                         </div>
-                        <p style={{fontSize:12,color:"#374151",margin:0,lineHeight:1.5}}>{n.text}</p>
                       </div>
-                      <div style={{display:"flex",gap:6,flexShrink:0}}>
-                        <button onClick={function(){ setNoticeModal({mode:"edit",data:Object.assign({},n)}); }}
-                          style={{background:"#ede9fe",color:"#6366f1",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>수정</button>
-                        <button onClick={function(){
-                          setNotices(function(v){ return v.filter(function(x){ return x.id!==n.id; }); });
-                          notify("공지사항이 삭제됐어요");
-                        }} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>삭제</button>
-                      </div>
+                    );
+                  })
+                }
+                <h3 style={{fontSize:13,fontWeight:800,margin:"16px 0 10px",color:"#374151"}}>📁 최근 처리 내역</h3>
+                {res.filter(function(r){return r.status==="승인"||r.status==="거절";}).slice(0,8).map(function(r){
+                  return <div key={r.id} style={{background:"white",borderRadius:13,padding:"11px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 6px rgba(0,0,0,.05)"}}>
+                    <div style={{width:34,height:34,borderRadius:10,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{r.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:12}}>{r.facility_name}</div>
+                      <div style={{fontSize:10,color:"#94a3b8"}}>{r.date} · {r.teacher_name}</div>
                     </div>
+                    <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                      <span style={{background:r.status==="승인"?"#dcfce7":"#fee2e2",color:r.status==="승인"?"#16a34a":"#ef4444",padding:"3px 8px",borderRadius:99,fontSize:10,fontWeight:800}}>{r.status}</span>
+                      <button onClick={function(){approveRes(r.id,"대기");}} style={{background:"#f1f5f9",color:"#64748b",border:"none",borderRadius:7,padding:"3px 7px",fontSize:10,fontWeight:700,cursor:"pointer"}}>되돌리기</button>
+                    </div>
+                  </div>;
+                })}
+              </div>
+            )}
+
+            {/* 통계 */}
+            {adminTab==="stats"&&(
+              <div>
+                <h3 style={{fontSize:15,fontWeight:800,margin:"0 0 14px"}}>📊 예약 현황 통계</h3>
+                <div style={{background:"white",borderRadius:18,padding:"16px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                  <p style={{fontSize:12,fontWeight:700,color:"#64748b",margin:"0 0 10px"}}>상태별 현황</p>
+                  {["대기","승인","거절","취소"].map(function(s){
+                    var cnt=res.filter(function(r){return r.status===s;}).length;
+                    var total=res.length||1;
+                    var colors={"대기":"#f59e0b","승인":"#10b981","거절":"#ef4444","취소":"#94a3b8"};
+                    return <div key={s} style={{marginBottom:10}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                        <span style={{fontSize:12,color:"#374151"}}>{s}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:colors[s]}}>{cnt}건 ({Math.round(cnt/total*100)}%)</span>
+                      </div>
+                      <div style={{height:7,background:"#f1f5f9",borderRadius:99,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:(cnt/total*100)+"%",background:colors[s],borderRadius:99}}></div>
+                      </div>
+                    </div>;
+                  })}
+                </div>
+                <div style={{background:"white",borderRadius:18,padding:"16px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                  <p style={{fontSize:12,fontWeight:700,color:"#64748b",margin:"0 0 10px"}}>시설별 이용 횟수</p>
+                  {(function(){
+                    var counts={};
+                    res.filter(function(r){return r.status!=="거절"&&r.status!=="취소";}).forEach(function(r){counts[r.facility_name]=(counts[r.facility_name]||0)+1;});
+                    var max=Math.max.apply(null,Object.values(counts).concat([1]));
+                    return Object.entries(counts).sort(function(a,b){return b[1]-a[1];}).slice(0,6).map(function(e){
+                      return <div key={e[0]} style={{marginBottom:10}}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                          <span style={{fontSize:12,color:"#374151"}}>{e[0]}</span>
+                          <span style={{fontSize:12,fontWeight:700,color:"#6366f1"}}>{e[1]}건</span>
+                        </div>
+                        <div style={{height:7,background:"#f1f5f9",borderRadius:99,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:(e[1]/max*100)+"%",background:"linear-gradient(90deg,#6366f1,#8b5cf6)",borderRadius:99}}></div>
+                        </div>
+                      </div>;
+                    });
+                  })()}
+                </div>
+                <div style={{background:"white",borderRadius:18,padding:"16px",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                  <p style={{fontSize:12,fontWeight:700,color:"#64748b",margin:"0 0 10px"}}>선생님별 예약 횟수</p>
+                  {(function(){
+                    var counts={};
+                    res.filter(function(r){return r.status!=="거절"&&r.status!=="취소";}).forEach(function(r){counts[r.teacher_name]=(counts[r.teacher_name]||0)+1;});
+                    return Object.entries(counts).sort(function(a,b){return b[1]-a[1];}).map(function(e,i){
+                      return <div key={e[0]} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
+                        <span style={{fontSize:12,color:["#6366f1","#10b981","#f59e0b","#ef4444","#3b82f6"][i%5],fontWeight:800}}>{i+1}</span>
+                        <span style={{flex:1,fontSize:13,color:"#374151"}}>{e[0]} 선생님</span>
+                        <span style={{fontSize:13,fontWeight:800,color:"#6366f1"}}>{e[1]}건</span>
+                      </div>;
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* 날짜 차단 */}
+            {adminTab==="block"&&(
+              <div>
+                <h3 style={{fontSize:15,fontWeight:800,margin:"0 0 6px"}}>🚫 예약 차단 날짜 관리</h3>
+                <p style={{fontSize:12,color:"#64748b",margin:"0 0 14px"}}>차단된 날짜는 예약 화면에서 선택 불가로 표시돼요</p>
+                <div style={{background:"white",borderRadius:16,padding:"16px",marginBottom:14,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                  <div style={{display:"flex",gap:8}}>
+                    <input type="date" value={blockInput} onChange={function(e){setBlockInput(e.target.value);}}
+                      style={{flex:1,background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"sans-serif",color:"#1e293b"}}/>
+                    <button onClick={function(){
+                      if(!blockInput)return notify("날짜를 선택해주세요","err");
+                      var d=new Date(blockInput);
+                      var dStr=(d.getMonth()+1)+"/"+d.getDate()+"("+DAY_KR[d.getDay()]+")";
+                      if(blockedDates.includes(dStr)){notify("이미 차단된 날짜예요","err");return;}
+                      setBlockedDates(function(v){return v.concat([dStr]);});
+                      setBlockInput("");
+                      notify(dStr+" 차단 완료!","ok");
+                    }} style={{background:"linear-gradient(135deg,#ef4444,#dc2626)",color:"white",border:"none",borderRadius:10,padding:"10px 14px",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>차단 추가</button>
                   </div>
-                );
-              })
-            }
+                </div>
+                {blockedDates.length===0
+                  ?<div style={{background:"white",borderRadius:14,padding:"24px",textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 8px rgba(0,0,0,.05)"}}><div style={{fontSize:28,marginBottom:6}}>📅</div><div style={{fontSize:12}}>차단된 날짜가 없어요</div></div>
+                  :blockedDates.map(function(d,i){
+                    return <div key={i} style={{background:"white",borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 6px rgba(0,0,0,.05)",borderLeft:"4px solid #ef4444"}}>
+                      <div style={{fontWeight:700,fontSize:14,color:"#374151"}}>{d} <span style={{fontSize:11,color:"#94a3b8",fontWeight:400}}>예약 차단</span></div>
+                      <button onClick={function(){setBlockedDates(function(v){return v.filter(function(x){return x!==d;});});notify("차단 해제됐어요","ok");}}
+                        style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>해제</button>
+                    </div>;
+                  })
+                }
+              </div>
+            )}
+
+            {/* 사용자 관리 */}
+            {adminTab==="users"&&(
+              <div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                  <h3 style={{fontSize:15,fontWeight:800,margin:0}}>👥 사용자 관리</h3>
+                  <button onClick={loadUsers} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:12,padding:"8px 14px",fontSize:12,fontWeight:800,cursor:"pointer"}}>목록 불러오기</button>
+                </div>
+                {userList.length===0
+                  ?<div style={{background:"white",borderRadius:14,padding:"32px",textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 8px rgba(0,0,0,.05)"}}><div style={{fontSize:36,marginBottom:8}}>👥</div><div style={{fontSize:12}}>목록 불러오기 버튼을 눌러주세요</div></div>
+                  :userList.map(function(u){
+                    return <div key={u.id} style={{background:"white",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 6px rgba(0,0,0,.06)"}}>
+                      <div style={{width:38,height:38,borderRadius:11,background:u.role==="admin"?"#ede9fe":"#f0fdf4",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{u.avatar||"👤"}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:800,fontSize:13,color:"#1e293b"}}>{u.name}</div>
+                        <div style={{fontSize:11,color:"#64748b"}}>{u.login_id} · {u.subject}</div>
+                      </div>
+                      <div style={{display:"flex",gap:5}}>
+                        <button onClick={function(){resetUserPw(u.login_id);}} style={{background:"#fef3c7",color:"#d97706",border:"none",borderRadius:7,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer"}}>PW초기화</button>
+                        {u.login_id!==user.login_id&&<button onClick={function(){deleteUser(u.id);}} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:7,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer"}}>삭제</button>}
+                      </div>
+                    </div>;
+                  })
+                }
+              </div>
+            )}
+
+            {/* 다운로드 */}
+            {adminTab==="download"&&(
+              <div>
+                <h3 style={{fontSize:15,fontWeight:800,margin:"0 0 6px"}}>📥 예약 내역 다운로드</h3>
+                <p style={{fontSize:12,color:"#64748b",margin:"0 0 16px"}}>전체 예약 내역을 엑셀(CSV) 파일로 저장해요</p>
+                <div style={{background:"white",borderRadius:18,padding:"22px",textAlign:"center",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:12}}>
+                  <div style={{fontSize:48,marginBottom:10}}>📊</div>
+                  <div style={{fontWeight:800,fontSize:16,marginBottom:4}}>전체 예약 내역</div>
+                  <div style={{fontSize:13,color:"#64748b",marginBottom:18}}>총 {res.length}건 · CSV 형식</div>
+                  <button onClick={downloadCSV} style={{background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:14,padding:"13px 28px",fontSize:14,fontWeight:800,cursor:"pointer"}}>📥 엑셀 다운로드</button>
+                </div>
+                <div style={{background:"#ede9fe",borderRadius:14,padding:"12px 16px"}}>
+                  <p style={{fontSize:12,fontWeight:700,color:"#6366f1",margin:"0 0 4px"}}>포함 항목</p>
+                  <p style={{fontSize:12,color:"#64748b",margin:0}}>예약ID · 시설명 · 날짜 · 교시 · 선생님 · 목적 · 상태 · 신청일</p>
+                </div>
+              </div>
+            )}
+
+            {/* 시설 관리 */}
+            {adminTab==="facility"&&(
+              <div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                  <h2 style={{fontSize:15,fontWeight:800,margin:0}}>🏫 특별실 관리</h2>
+                  <button onClick={function(){openReg("facility");}} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 시설</button>
+                </div>
+                {facList.map(function(f){
+                  return <div key={f.id} style={{background:"white",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:"4px solid "+f.color}}>
+                    <div style={{width:38,height:38,borderRadius:11,background:f.color+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{f.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:800,fontSize:13}}>{f.name}</div>
+                      <div style={{fontSize:11,color:"#64748b"}}>{f.floor} · {f.capacity}명</div>
+                    </div>
+                    <button onClick={function(){openReg("facility",f);}} style={{background:"#ede9fe",color:"#6366f1",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>수정</button>
+                    <button onClick={function(){setDelConfirm({type:"facility",item:f});}} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>삭제</button>
+                  </div>;
+                })}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"18px 0 12px"}}>
+                  <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📦 교구·기기 관리</h2>
+                  <button onClick={function(){openReg("item");}} style={{background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 교구</button>
+                </div>
+                {itemList.map(function(item){
+                  return <div key={item.id} style={{background:"white",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:"4px solid "+item.color}}>
+                    <div style={{width:38,height:38,borderRadius:11,background:item.color+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{item.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:800,fontSize:13}}>{item.name}</div>
+                      <div style={{fontSize:11,color:"#64748b"}}>{item.category} · 잔여 {item.stock}개</div>
+                    </div>
+                    <button onClick={function(){openReg("item",item);}} style={{background:"#ede9fe",color:"#6366f1",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>수정</button>
+                    <button onClick={function(){setDelConfirm({type:"item",item:item});}} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>삭제</button>
+                  </div>;
+                })}
+              </div>
+            )}
+
+            {/* 공지 관리 */}
+            {adminTab==="notice"&&(
+              <div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                  <h2 style={{fontSize:15,fontWeight:800,margin:0}}>📢 공지사항 관리</h2>
+                  <button onClick={function(){setNoticeModal({mode:"add",data:{title:"공지",text:"",type:"info",icon:"📢",date:fmtDate(today,0)}});}} style={{background:"linear-gradient(135deg,#0ea5e9,#0284c7)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 공지</button>
+                </div>
+                {notices.length===0
+                  ?<div style={{background:"white",borderRadius:14,padding:"20px",textAlign:"center",color:"#94a3b8",fontSize:13}}>등록된 공지사항이 없어요</div>
+                  :notices.map(function(n){
+                    var typeBg={urgent:"#fee2e2",info:"#ede9fe",new:"#dcfce7"};
+                    var typeColor={urgent:"#ef4444",info:"#6366f1",new:"#16a34a"};
+                    return <div key={n.id} style={{background:"white",borderRadius:14,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)"}}>
+                      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                        <span style={{fontSize:16,flexShrink:0}}>{n.icon}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",gap:5,marginBottom:3}}>
+                            <span style={{background:typeBg[n.type]||"#f1f5f9",color:typeColor[n.type]||"#64748b",fontSize:9,fontWeight:800,padding:"2px 6px",borderRadius:99}}>{n.title}</span>
+                            <span style={{color:"#94a3b8",fontSize:10}}>{n.date}</span>
+                          </div>
+                          <p style={{fontSize:12,color:"#374151",margin:0}}>{n.text}</p>
+                        </div>
+                        <button onClick={function(){setNoticeModal({mode:"edit",data:Object.assign({},n)});}} style={{background:"#ede9fe",color:"#6366f1",border:"none",borderRadius:7,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer"}}>수정</button>
+                        <button onClick={function(){setNotices(function(v){return v.filter(function(x){return x.id!==n.id;});});notify("삭제됐어요");}} style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:7,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer"}}>삭제</button>
+                      </div>
+                    </div>;
+                  })
+                }
+              </div>
+            )}
           </div>
         )}
 
