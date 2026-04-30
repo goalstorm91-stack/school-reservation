@@ -1089,7 +1089,7 @@ export default function App() {
           <div style={{paddingBottom:8}}>
             <div style={{padding:"20px 16px 0"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}><span role="img" aria-label="calendar">📆</span> 이번 주 예약</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>🗓 이번 주 예약</h2>
                 <span style={{color:"#94a3b8",fontSize:11,fontWeight:600}}>{today.getMonth()+1}월</span>
               </div>
               <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:22}}>
@@ -1118,7 +1118,7 @@ export default function App() {
             </div>
             <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}><span role="img" aria-label="lightning">⚡</span> 빠른 예약</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>&#9889; 빠른 예약</h2>
                 <span onClick={function(){ setTab("facilities"); }} style={{color:"#6366f1",fontSize:12,fontWeight:700,cursor:"pointer"}}>전체 보기 →</span>
               </div>
             </div>
@@ -1144,7 +1144,7 @@ export default function App() {
             </div>
             <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}><span role="img" aria-label="date">📅</span> 오늘의 예약 현황</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>&#128197; 오늘의 예약 현황</h2>
                 <span style={{background:"#ede9fe",color:"#6366f1",fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:99}}>{todayR.length}건</span>
               </div>
               {todayR.length===0
