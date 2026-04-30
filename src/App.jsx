@@ -611,6 +611,7 @@ export default function App() {
   var [repeatMode,setRepeatMode]       = useState(false);
   var [calView,setCalView]             = useState(false);
   var [darkMode,setDarkMode]           = useState(false);
+  var [selectedHomeDate,setSelectedHomeDate] = useState(null);
   var [selectedRes,setSelectedRes]     = useState({});
   var [bulkMode,setBulkMode]           = useState(false);
   var [blockedDates,setBlockedDates]   = useState([]);
@@ -1089,10 +1090,10 @@ export default function App() {
           <div style={{paddingBottom:8}}>
             <div style={{padding:"20px 16px 0"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>이번 주 예약</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>{String.fromCodePoint(0x1F4C6)} 이번 주 예약</h2>
                 <span style={{color:"#94a3b8",fontSize:11,fontWeight:600}}>{today.getMonth()+1}월</span>
               </div>
-              <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:22}}>
+              <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:14}}>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
                   {[0,1,2,3,4,5,6].map(function(offset){
                     var d=new Date(today); d.setDate(d.getDate()-today.getDay()+offset);
@@ -1100,10 +1101,18 @@ export default function App() {
                     var dayRes=res.filter(function(r){ return r.date===dStr; });
                     var isToday=d.toDateString()===today.toDateString();
                     var isWeekend=d.getDay()===0||d.getDay()===6;
+                    var isSelected=selectedHomeDate===dStr;
                     return (
-                      <div key={offset} style={{textAlign:"center"}}>
+                      <div key={offset} style={{textAlign:"center",cursor:"pointer"}}
+                        onClick={function(){ setSelectedHomeDate(isSelected?null:dStr); }}>
                         <div style={{fontSize:10,fontWeight:700,color:isWeekend?"#ef4444":"#94a3b8",marginBottom:5}}>{DAY_KR[d.getDay()]}</div>
-                        <div style={{width:32,height:32,borderRadius:99,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"center",background:isToday?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",border:isToday?"none":"1.5px solid #e8ecf0",fontSize:12,fontWeight:isToday?900:600,color:isToday?"white":isWeekend?"#ef4444":"#374151"}}>{d.getDate()}</div>
+                        <div style={{width:32,height:32,borderRadius:99,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"center",
+                          background:isSelected?"#4338ca":isToday?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",
+                          border:isSelected?"none":isToday?"none":"1.5px solid #e8ecf0",
+                          fontSize:12,fontWeight:(isToday||isSelected)?900:600,
+                          color:(isToday||isSelected)?"white":isWeekend?"#ef4444":"#374151",
+                          boxShadow:isSelected?"0 4px 12px rgba(67,56,202,.4)":"none",
+                        }}>{d.getDate()}</div>
                         <div style={{marginTop:5,display:"flex",justifyContent:"center",gap:2,minHeight:8}}>
                           {dayRes.slice(0,3).map(function(r,i){ return <div key={i} style={{width:6,height:6,borderRadius:99,background:r.status==="승인"?"#6366f1":"#fbbf24"}}></div>; })}
                         </div>
@@ -1112,17 +1121,58 @@ export default function App() {
                   })}
                 </div>
                 <div style={{display:"flex",gap:14,marginTop:12,paddingTop:10,borderTop:"1px solid #f1f5f9",justifyContent:"flex-end"}}>
-                  {[["#6366f1","승인"],["#fbbf24","대기"]].map(function(item){ return <div key={item[1]} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:7,height:7,borderRadius:99,background:item[0]}}></div><span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{item[1]}</span></div>; })}
+                  {[["#6366f1","승인"],["#fbbf24","대기"]].map(function(item){
+                    return <div key={item[1]} style={{display:"flex",alignItems:"center",gap:5}}>
+                      <div style={{width:7,height:7,borderRadius:99,background:item[0]}}></div>
+                      <span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{item[1]}</span>
+                    </div>;
+                  })}
                 </div>
               </div>
+
+              {/* 날짜 클릭 시 해당 날 예약 현황 */}
+              {selectedHomeDate&&(function(){
+                var selRes=res.filter(function(r){ return r.date===selectedHomeDate; });
+                return (
+                  <div style={{background:"linear-gradient(135deg,#ede9fe,#e0e7ff)",borderRadius:16,padding:"14px 16px",marginBottom:16,animation:"fadeUp .25s ease"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                      <span style={{fontSize:13,fontWeight:800,color:"#4338ca"}}>{selectedHomeDate} 예약</span>
+                      <span style={{background:"#6366f1",color:"white",fontSize:11,fontWeight:800,padding:"2px 10px",borderRadius:99}}>{selRes.length}건</span>
+                    </div>
+                    {selRes.length===0
+                      ?<div style={{textAlign:"center",padding:"12px 0",color:"#94a3b8",fontSize:13}}>이 날짜는 예약이 없어요</div>
+                      :selRes.map(function(r){
+                        return (
+                          <div key={r.id} onClick={function(){ setQr(r); }}
+                            style={{background:"white",borderRadius:12,padding:"10px 12px",marginBottom:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer",boxShadow:"0 2px 6px rgba(0,0,0,.06)"}}>
+                            <div style={{width:36,height:36,borderRadius:10,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.icon}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontWeight:700,fontSize:13}}>{r.facility_name}</div>
+                              <div style={{fontSize:11,color:"#64748b"}}>{r.time_slot} · {r.teacher_name}</div>
+                            </div>
+                            <span style={{
+                              background:r.status==="승인"?"#dcfce7":r.status==="거절"?"#fee2e2":"#fef3c7",
+                              color:r.status==="승인"?"#16a34a":r.status==="거절"?"#ef4444":"#d97706",
+                              padding:"3px 9px",borderRadius:99,fontSize:10,fontWeight:800,flexShrink:0
+                            }}>{r.status}</span>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                );
+              })()}
             </div>
             <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>오늘의 예약 현황</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>{String.fromCodePoint(0x1F4C5)} 오늘의 예약 현황</h2>
                 <span style={{background:"#ede9fe",color:"#6366f1",fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:99}}>{todayR.length}건</span>
               </div>
               {todayR.length===0
-                ?<div style={{background:"white",borderRadius:18,padding:36,textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}><div style={{fontSize:36,marginBottom:10}}>📭</div><div style={{fontSize:13,fontWeight:600}}>오늘 예약이 없어요</div></div>
+                ?<div style={{background:"white",borderRadius:18,padding:36,textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
+                  <div style={{fontSize:36,marginBottom:10}}>📭</div>
+                  <div style={{fontSize:13,fontWeight:600}}>오늘 예약이 없어요</div>
+                </div>
                 :todayR.map(function(r){
                   return <div key={r.id} onClick={function(){ setQr(r); }} style={{background:"white",borderRadius:18,padding:"15px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:13,boxShadow:"0 2px 10px rgba(0,0,0,.06)",cursor:"pointer"}}>
                     <div style={{width:46,height:46,borderRadius:14,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{r.icon}</div>
