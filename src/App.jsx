@@ -305,7 +305,7 @@ function LoginScreen(props) {
               <input type={showPw?"text":"password"} value={pw} onChange={function(e){setPw(e.target.value);setErr("");}} onKeyDown={function(e){if(e.key==="Enter")login();}} placeholder="비밀번호 입력" style={Object.assign({},inputStyle,{paddingRight:46})}/>
               <button onClick={function(){setShowPw(function(v){return !v;});}} style={{position:"absolute",right:14,bottom:14,background:"none",border:"none",color:"rgba(255,255,255,.4)",cursor:"pointer",fontSize:17,padding:0}}>{showPw?"":""}</button>
             </div>
-            {err&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠️ {err}</div>}
+            {err&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠ {err}</div>}
             <div onClick={function(){setAutoLogin(function(v){return !v;});}} style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,cursor:"pointer",userSelect:"none"}}>
               <div style={{width:22,height:22,borderRadius:7,border:"2px solid "+(autoLogin?"#818cf8":"rgba(255,255,255,.25)"),background:autoLogin?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",flexShrink:0}}>
                 {autoLogin&&<span style={{color:"white",fontSize:13,fontWeight:900}}>✓</span>}
@@ -365,7 +365,7 @@ function LoginScreen(props) {
                   })}
                 </div>
               </div>
-              {signErr&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠️ {signErr}</div>}
+              {signErr&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠ {signErr}</div>}
               <button onClick={signup} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:14,padding:15,fontSize:15,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 {loading?<Spinner size={18} label="가입 중..."/>:"회원가입 완료 ✓"}
               </button>
@@ -513,7 +513,7 @@ function CheckInPage() {
         {/* 오류 */}
         {status==="error" && (
           <div style={{padding:"16px 0"}}>
-            <div style={{fontSize:40,marginBottom:14}}>⚠️</div>
+            <div style={{fontSize:40,marginBottom:14}}>⚠</div>
             <h2 style={{color:"#fca5a5",fontSize:18,fontWeight:900,margin:"0 0 8px"}}>연결 오류</h2>
             <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>네트워크를 확인하고 다시 시도해주세요.</p>
           </div>
@@ -560,7 +560,12 @@ export default function App() {
     { id:3, type:"new",    icon:"✨", title:"안내", text:"태블릿 세트 10대 신규 입고되었습니다.", date:"5/10" },
     { id:4, type:"info",   icon:"🔧", title:"점검", text:"매주 금요일 오후 컴퓨터실 정기 점검이 있습니다.", date:"상시" },
   ]);
-  var [noticeModal,setNoticeModal]     = useState(null); // 0=이번달, 1=다음달...
+  var [noticeModal,setNoticeModal]     = useState(null);
+  var [cancelConfirm,setCancelConfirm] = useState(null);
+  var [pwModal,setPwModal]             = useState(false);
+  var [pwForm,setPwForm]               = useState({current:"",next:"",confirm:""});
+  var [repeatMode,setRepeatMode]       = useState(false);
+  var [calView,setCalView]             = useState(false);
 
   // ── DB에서 데이터 불러오기 ──
   function loadAll(){
@@ -788,8 +793,34 @@ export default function App() {
       .catch(function(e){ notify("오류: "+e.message,"err"); });
   }
 
-  function saveEmail(){
-    if(!editEmail.trim()) return notify("이메일을 입력해주세요","err");
+  function cancelReservation(id){
+    sb.patch("reservations","id=eq."+id,{status:"취소"})
+      .then(function(){
+        setRes(function(v){ return v.map(function(r){ return r.id==id?Object.assign({},r,{status:"취소"}):r; }); });
+        setCancelConfirm(null);
+        notify("예약이 취소됐어요","ok");
+      }).catch(function(e){ notify("취소 오류: "+e.message,"err"); });
+  }
+
+  function changePassword(){
+    if(!pwForm.current) return notify("현재 비밀번호를 입력해주세요","err");
+    if(!pwForm.next||pwForm.next.length<4) return notify("새 비밀번호는 4자 이상이어야 해요","err");
+    if(pwForm.next!==pwForm.confirm) return notify("새 비밀번호가 일치하지 않아요","err");
+    sb.get("users","select=password&login_id=eq."+user.login_id)
+      .then(function(rows){
+        if(!rows||!rows.length||rows[0].password!==pwForm.current){
+          return notify("현재 비밀번호가 올바르지 않아요","err");
+        }
+        sb.patch("users","login_id=eq."+user.login_id,{password:pwForm.next})
+          .then(function(){
+            setPwModal(false);
+            setPwForm({current:"",next:"",confirm:""});
+            notify("비밀번호가 변경됐어요! 🔐","ok");
+          }).catch(function(e){ notify("변경 오류: "+e.message,"err"); });
+      }).catch(function(e){ notify("오류: "+e.message,"err"); });
+  }
+
+  function saveEmail(){    if(!editEmail.trim()) return notify("이메일을 입력해주세요","err");
     setSavingEmail(true);
     sb.patch("users","login_id=eq."+user.login_id,{email:editEmail.trim()})
       .then(function(){
@@ -834,7 +865,7 @@ export default function App() {
   var unreadCnt= myNotifs.filter(function(n){ return !n.is_read; }).length;
 
   var TABS=[["home","","홈"],["facilities","🏫","시설"],["items","📦","교구"],["mypage","📋","내 예약"]];
-  if(user.role==="admin") TABS.push(["manage","⚙️","관리"]);
+  if(user.role==="admin") TABS.push(["manage","⚙","관리"]);
 
   return (
     <div style={{fontFamily:"sans-serif",minHeight:"100vh",background:"#f5f7fa",color:"#1e293b",maxWidth:430,margin:"0 auto",position:"relative",boxShadow:"0 0 60px rgba(0,0,0,.14)"}}>
@@ -863,7 +894,7 @@ export default function App() {
                   <div style={{fontSize:13,fontWeight:600}}>아직 알림이 없어요</div>
                 </div>
               ):myNotifs.map(function(n){
-                var icon = n.type==="success"?"✅":n.type==="error"?"❌":"ℹ️";
+                var icon = n.type==="success"?"✅":n.type==="error"?"❌":"ℹ";
                 var bg   = n.is_read?"transparent":"#f8f7ff";
                 var time = new Date(n.created_at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
                 return (
@@ -1053,20 +1084,25 @@ export default function App() {
         {/* ─ 내 예약 ─ */}
         {!loadingData&&tab==="mypage"&&(
           <div style={{padding:"22px 16px"}}>
+            {/* 프로필 카드 */}
             <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",borderRadius:20,padding:20,marginBottom:16,display:"flex",alignItems:"center",gap:14}}>
-              <div style={{width:52,height:52,borderRadius:16,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>{user.avatar||""}</div>
+              <div style={{width:52,height:52,borderRadius:16,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>{user.avatar||"👤"}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{color:"white",fontWeight:900,fontSize:17}}>{user.name} {user.role==="admin"?"관리자":"선생님"}</div>
-                <div style={{color:"rgba(255,255,255,.7)",fontSize:12,marginTop:3}}>{user.subject} · 예약 {myR.length}건</div>
+                <div style={{color:"rgba(255,255,255,.7)",fontSize:12,marginTop:3}}>{user.subject} · 예약 {myR.filter(function(r){return r.status!=="취소";}).length}건</div>
                 <div style={{color:"rgba(255,255,255,.55)",fontSize:11,marginTop:3}}>{user.email||"이메일 미등록"}</div>
               </div>
+              <button onClick={function(){ setPwModal(true); }}
+                style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:12,padding:"8px 12px",color:"white",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+                🔐 비밀번호
+              </button>
             </div>
 
             {/* 이메일 등록·수정 */}
-            <div style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:18,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}> 알림 이메일 주소</label>
+            <div style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:14,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>📧 알림 이메일 주소</label>
               <div style={{display:"flex",gap:8}}>
-                <input type="email" value={editEmail} onChange={function(e){setEditEmail(e.target.value);}} placeholder="예: teacher@school.kr"
+                <input type="email" value={editEmail} onChange={function(e){setEditEmail(e.target.value);}} placeholder="teacher@school.kr"
                   style={{flex:1,background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"sans-serif",color:"#1e293b"}}/>
                 <button onClick={saveEmail} disabled={savingEmail} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,cursor:"pointer",flexShrink:0,opacity:savingEmail?0.7:1}}>
                   {savingEmail?"저장 중...":"저장"}
@@ -1074,25 +1110,98 @@ export default function App() {
               </div>
               <p style={{fontSize:11,color:"#94a3b8",margin:"6px 0 0"}}>예약 승인·거절 시 이 이메일로 알림이 발송돼요</p>
             </div>
-            <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 16px"}}>📋 내 예약 목록</h2>
-            {myR.length===0
-              ?<div style={{textAlign:"center",padding:"52px 0",color:"#94a3b8",background:"white",borderRadius:20,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}><div style={{fontSize:42,marginBottom:12}}></div><div style={{fontSize:14,fontWeight:600}}>예약 내역이 없어요</div></div>
-              :myR.map(function(r){
-                return <div key={r.id} onClick={function(){ setQr(r); }} style={{background:"white",borderRadius:20,padding:17,marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,.06)",cursor:"pointer"}}>
-                  <div style={{display:"flex",gap:13,alignItems:"center",marginBottom:r.status==="승인"?12:0}}>
-                    <div style={{width:50,height:50,borderRadius:15,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{r.icon}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:800,fontSize:15,marginBottom:3}}>{r.facility_name}</div>
-                      <div style={{fontSize:12,color:"#64748b"}}>{r.date} {r.time_slot}</div>
-                      <div style={{fontSize:12,color:"#94a3b8",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.purpose}</div>
+
+            {/* 예약 현황 달력 */}
+            <div style={{background:"white",borderRadius:16,padding:"14px 16px",marginBottom:14,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:calView?12:0}}>
+                <span style={{fontSize:13,fontWeight:700,color:"#374151"}}>📅 예약 현황 달력</span>
+                <button onClick={function(){ setCalView(function(v){ return !v; }); }}
+                  style={{background:calView?"#ede9fe":"#f1f5f9",color:calView?"#6366f1":"#64748b",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                  {calView?"접기 ▲":"펼치기 ▼"}
+                </button>
+              </div>
+              {calView&&(function(){
+                var base=new Date(today.getFullYear(),today.getMonth()+calMonth,1);
+                var year=base.getFullYear(),month=base.getMonth();
+                var firstDay=base.getDay(),daysInMonth=new Date(year,month+1,0).getDate();
+                var startOffset=firstDay===0?6:firstDay-1;
+                var cells=[];
+                for(var i=0;i<startOffset;i++) cells.push(null);
+                for(var j=1;j<=daysInMonth;j++) cells.push(j);
+                while(cells.length%7!==0) cells.push(null);
+                return (
+                  <div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                      <button onClick={function(){ setCalMonth(function(m){ return m-1; }); }} style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:"#6366f1",fontWeight:700}}>‹</button>
+                      <span style={{fontSize:13,fontWeight:700,color:"#374151"}}>{year}년 {month+1}월</span>
+                      <button onClick={function(){ setCalMonth(function(m){ return m+1; }); }} style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:"#6366f1",fontWeight:700}}>›</button>
                     </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
-                      <span style={{background:r.status==="승인"?"#dcfce7":"#fef3c7",color:r.status==="승인"?"#16a34a":"#d97706",padding:"4px 12px",borderRadius:99,fontSize:12,fontWeight:800}}>{r.status}</span>
-                      {r.status==="승인"&&<span style={{fontSize:11,color:"#6366f1",fontWeight:700}}>QR 보기 →</span>}
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:6}}>
+                      {["월","화","수","목","금","토","일"].map(function(d,i){ return <div key={i} style={{textAlign:"center",fontSize:10,fontWeight:700,color:i>=5?"#ef4444":"#94a3b8",paddingBottom:3}}>{d}</div>; })}
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+                      {cells.map(function(day,idx){
+                        if(!day) return <div key={idx}></div>;
+                        var d=new Date(year,month,day);
+                        var dStr=(d.getMonth()+1)+"/"+d.getDate()+"("+DAY_KR[d.getDay()]+")";
+                        var dayMyRes=myR.filter(function(r){ return r.date===dStr&&r.status!=="취소"; });
+                        var isToday=d.toDateString()===today.toDateString();
+                        var isWeekend=idx%7>=5;
+                        return (
+                          <div key={idx} style={{textAlign:"center",borderRadius:8,padding:"4px 2px",background:dayMyRes.length>0?"#ede9fe":isToday?"#f0fdf4":"transparent",border:isToday?"1.5px solid #6366f1":"1.5px solid transparent",cursor:dayMyRes.length>0?"pointer":"default"}}
+                            onClick={function(){ if(dayMyRes.length>0) setQr(dayMyRes[0]); }}>
+                            <div style={{fontSize:11,fontWeight:isToday?800:500,color:isToday?"#6366f1":isWeekend?"#ef4444":"#374151"}}>{day}</div>
+                            {dayMyRes.length>0&&<div style={{width:5,height:5,borderRadius:99,background:dayMyRes[0].status==="승인"?"#6366f1":"#fbbf24",margin:"2px auto 0"}}></div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{display:"flex",gap:12,marginTop:10,justifyContent:"flex-end"}}>
+                      {[["#6366f1","승인"],["#fbbf24","대기"]].map(function(item){ return <div key={item[1]} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:6,height:6,borderRadius:99,background:item[0]}}></div><span style={{fontSize:10,color:"#94a3b8"}}>{item[1]}</span></div>; })}
                     </div>
                   </div>
-                  {r.status==="승인"&&<div style={{background:"#ede9fe",borderRadius:11,padding:"9px 13px",display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:15}}>(태블릿)</span><span style={{fontSize:12,color:"#6366f1",fontWeight:700}}>QR코드로 입실을 확인하세요</span></div>}
-                </div>;
+                );
+              })()}
+            </div>
+
+            {/* 내 예약 목록 */}
+            <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 16px"}}>📋 내 예약 목록</h2>
+            {myR.length===0
+              ?<div style={{textAlign:"center",padding:"52px 0",color:"#94a3b8",background:"white",borderRadius:20,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}><div style={{fontSize:42,marginBottom:12}}>📭</div><div style={{fontSize:14,fontWeight:600}}>예약 내역이 없어요</div></div>
+              :myR.map(function(r){
+                var isCancelled=r.status==="취소";
+                return (
+                  <div key={r.id} style={{background:"white",borderRadius:20,padding:17,marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,.06)",opacity:isCancelled?0.55:1}}>
+                    <div style={{display:"flex",gap:13,alignItems:"center",marginBottom:(r.status==="승인"&&!isCancelled)?12:0}}>
+                      <div style={{width:50,height:50,borderRadius:15,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{r.icon}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:800,fontSize:15,marginBottom:3,textDecoration:isCancelled?"line-through":"none"}}>{r.facility_name}</div>
+                        <div style={{fontSize:12,color:"#64748b"}}>{r.date} {r.time_slot}</div>
+                        <div style={{fontSize:12,color:"#94a3b8",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.purpose}</div>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+                        <span style={{
+                          background:isCancelled?"#f1f5f9":r.status==="승인"?"#dcfce7":"#fef3c7",
+                          color:isCancelled?"#94a3b8":r.status==="승인"?"#16a34a":"#d97706",
+                          padding:"4px 12px",borderRadius:99,fontSize:12,fontWeight:800
+                        }}>{r.status}</span>
+                        {!isCancelled&&r.status==="대기"&&(
+                          <button onClick={function(e){ e.stopPropagation(); setCancelConfirm(r); }}
+                            style={{background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                            취소
+                          </button>
+                        )}
+                        {r.status==="승인"&&!isCancelled&&<span onClick={function(){ setQr(r); }} style={{fontSize:11,color:"#6366f1",fontWeight:700,cursor:"pointer"}}>QR 보기 →</span>}
+                      </div>
+                    </div>
+                    {r.status==="승인"&&!isCancelled&&(
+                      <div onClick={function(){ setQr(r); }} style={{background:"#ede9fe",borderRadius:11,padding:"9px 13px",display:"flex",gap:8,alignItems:"center",cursor:"pointer"}}>
+                        <span style={{fontSize:15}}>📱</span>
+                        <span style={{fontSize:12,color:"#6366f1",fontWeight:700}}>QR코드로 입실을 확인하세요</span>
+                      </div>
+                    )}
+                  </div>
+                );
               })
             }
           </div>
@@ -1192,7 +1301,7 @@ export default function App() {
 
             {/* 시설·교구 관리 */}
             <div style={{background:"linear-gradient(135deg,#4338ca,#6366f1)",borderRadius:18,padding:"16px 18px",marginBottom:22,display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{fontSize:26}}>⚙️</div>
+              <div style={{fontSize:26}}>⚙</div>
               <div>
                 <div style={{color:"white",fontWeight:900,fontSize:15}}>시설·교구 관리</div>
                 <div style={{color:"rgba(255,255,255,.65)",fontSize:12,marginTop:2}}>Supabase DB에 실시간 저장됩니다</div>
@@ -1420,15 +1529,63 @@ export default function App() {
             )}
             {step===1&&(
               <div>
-                <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 20px"}}> 사용 목적 입력</h3>
+                <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 20px"}}>📝 사용 목적 입력</h3>
                 <div style={{background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:16,padding:"15px 17px",marginBottom:16}}>
                   {[["장소",modal.name],["날짜",book.date],["시간",book.time]].map(function(kv){ return <div key={kv[0]} style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13}}><span style={{color:"#64748b"}}>{kv[0]}</span><span style={{fontWeight:800}}>{kv[1]}</span></div>; })}
                 </div>
-                <textarea value={book.purpose} onChange={function(e){ setBook(function(b){ return Object.assign({},b,{purpose:e.target.value}); }); }} placeholder="사용 목적을 입력하세요 (예: 5학년 과학 실험)"
-                  style={{width:"100%",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:16,padding:14,fontSize:14,color:"#1e293b",resize:"none",height:88,fontFamily:"sans-serif",marginBottom:18,boxSizing:"border-box"}}/>
+
+                {/* 목적 템플릿 */}
+                <p style={{fontSize:12,fontWeight:700,color:"#374151",margin:"0 0 8px"}}>빠른 선택</p>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+                  {["수업 활용","과학 실험","영상 시청","발표 수업","동아리 활동","방과후 수업","특별 수업","평가/시험"].map(function(t){
+                    return <button key={t} onClick={function(){ setBook(function(b){ return Object.assign({},b,{purpose:t}); }); }}
+                      style={{background:book.purpose===t?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#f1f5f9",color:book.purpose===t?"white":"#374151",border:"none",borderRadius:99,padding:"6px 13px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                      {t}
+                    </button>;
+                  })}
+                </div>
+
+                <textarea value={book.purpose} onChange={function(e){ setBook(function(b){ return Object.assign({},b,{purpose:e.target.value}); }); }} placeholder="또는 직접 입력하세요 (예: 5학년 과학 실험)"
+                  style={{width:"100%",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:16,padding:14,fontSize:14,color:"#1e293b",resize:"none",height:72,fontFamily:"sans-serif",marginBottom:14,boxSizing:"border-box"}}/>
+
+                {/* 반복 예약 */}
+                <div onClick={function(){ setRepeatMode(function(v){ return !v; }); }}
+                  style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,cursor:"pointer",background:"#f8fafc",borderRadius:13,padding:"11px 14px",border:"1.5px solid "+(repeatMode?"#6366f1":"#e8ecf0")}}>
+                  <div style={{width:22,height:22,borderRadius:7,border:"2px solid "+(repeatMode?"#6366f1":"#d1d5db"),background:repeatMode?"linear-gradient(135deg,#6366f1,#8b5cf6)":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s"}}>
+                    {repeatMode&&<span style={{color:"white",fontSize:13,fontWeight:900}}>✓</span>}
+                  </div>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#374151"}}>🔁 매주 반복 예약</div>
+                    <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>같은 요일·교시로 4주간 자동 신청</div>
+                  </div>
+                </div>
+
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
                   <button onClick={function(){ setStep(0); }} style={{background:"#f1f5f9",color:"#374151",border:"none",borderRadius:15,padding:15,fontSize:15,fontWeight:700,cursor:"pointer"}}>← 이전</button>
-                  <button onClick={function(){ confirmBook(modal); }} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:15,padding:15,fontSize:15,fontWeight:800,cursor:"pointer"}}>예약 신청 ✓</button>
+                  <button onClick={function(){
+                    if(repeatMode){
+                      var promises=[];
+                      for(var w=0;w<4;w++){
+                        (function(week){
+                          var baseDate=new Date(today);
+                          var parts=book.date.match(/(\d+)\/(\d+)/);
+                          if(parts) baseDate=new Date(today.getFullYear(),parseInt(parts[1])-1,parseInt(parts[2]));
+                          baseDate.setDate(baseDate.getDate()+week*7);
+                          var newDate=(baseDate.getMonth()+1)+"/"+baseDate.getDate()+"("+DAY_KR[baseDate.getDay()]+")";
+                          promises.push(sb.post("reservations",{facility_name:modal.name,icon:modal.icon,date:newDate,time_slot:book.time,teacher_name:user.name,purpose:book.purpose||"수업 활용",status:"대기"}));
+                        })(w);
+                      }
+                      Promise.all(promises).then(function(results){
+                        results.forEach(function(rows){ if(rows&&rows[0]) setRes(function(v){ return [rows[0]].concat(v); }); });
+                        setModal(null);setStep(0);setBook({date:"",time:"",purpose:""});setRepeatMode(false);
+                        notify("4주 반복 예약 신청 완료! 🔁","ok");
+                      }).catch(function(e){ notify("오류: "+e.message,"err"); });
+                    } else {
+                      confirmBook(modal);
+                    }
+                  }} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:15,padding:15,fontSize:15,fontWeight:800,cursor:"pointer"}}>
+                    {repeatMode?"4주 반복 신청 🔁":"예약 신청 ✓"}
+                  </button>
                 </div>
               </div>
             )}
@@ -1542,11 +1699,52 @@ export default function App() {
         </div>
       )}
 
+      {/* 예약 취소 확인 모달 */}
+      {cancelConfirm&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.6)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={function(){ setCancelConfirm(null); }}>
+          <div style={{background:"white",borderRadius:24,padding:"32px 26px",width:"100%",maxWidth:320,animation:"popIn .28s ease",textAlign:"center"}} onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{fontSize:44,marginBottom:12}}>🚫</div>
+            <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 10px"}}>예약을 취소할까요?</h3>
+            <p style={{color:"#64748b",fontSize:14,margin:"0 0 4px"}}><strong>{cancelConfirm.facility_name}</strong></p>
+            <p style={{color:"#94a3b8",fontSize:13,margin:"0 0 24px"}}>{cancelConfirm.date} · {cancelConfirm.time_slot}</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <button onClick={function(){ setCancelConfirm(null); }} style={{background:"#f1f5f9",color:"#374151",border:"none",borderRadius:14,padding:14,fontSize:14,fontWeight:700,cursor:"pointer"}}>아니요</button>
+              <button onClick={function(){ cancelReservation(cancelConfirm.id); }} style={{background:"linear-gradient(135deg,#ef4444,#dc2626)",color:"white",border:"none",borderRadius:14,padding:14,fontSize:14,fontWeight:800,cursor:"pointer"}}>취소하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 변경 모달 */}
+      {pwModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.6)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){ if(e.target===e.currentTarget)setPwModal(false); }}>
+          <div style={{background:"white",borderRadius:"26px 26px 0 0",padding:"28px 24px 44px",width:"100%",maxWidth:430,animation:"slideUp .32s ease"}} onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{width:42,height:5,background:"#e2e8f0",borderRadius:99,margin:"0 auto 22px"}}></div>
+            <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 22px"}}>🔐 비밀번호 변경</h3>
+            {[
+              {l:"현재 비밀번호",k:"current",ph:"현재 비밀번호 입력"},
+              {l:"새 비밀번호 (4자 이상)",k:"next",ph:"새 비밀번호 입력"},
+              {l:"새 비밀번호 확인",k:"confirm",ph:"새 비밀번호 재입력"},
+            ].map(function(f){
+              return <div key={f.k} style={{marginBottom:14}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>{f.l}</label>
+                <input type="password" value={pwForm[f.k]||""} onChange={function(e){ var k=f.k; setPwForm(function(v){ var n=Object.assign({},v); n[k]=e.target.value; return n; }); }}
+                  placeholder={f.ph} style={{width:"100%",boxSizing:"border-box",background:"#f8fafc",border:"1.5px solid #e8ecf0",borderRadius:12,padding:"12px 14px",fontSize:14,fontFamily:"sans-serif",color:"#1e293b"}}/>
+              </div>;
+            })}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11,marginTop:8}}>
+              <button onClick={function(){ setPwModal(false); setPwForm({current:"",next:"",confirm:""}); }} style={{background:"#f1f5f9",color:"#374151",border:"none",borderRadius:15,padding:15,fontSize:15,fontWeight:700,cursor:"pointer"}}>취소</button>
+              <button onClick={changePassword} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:15,padding:15,fontSize:15,fontWeight:800,cursor:"pointer"}}>변경하기 ✓</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 삭제 확인 모달 */}
       {delConfirm&&(
         <div style={{position:"fixed",inset:0,background:"rgba(15,15,35,.6)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={function(){ setDelConfirm(null); }}>
           <div style={{background:"white",borderRadius:24,padding:"32px 26px",width:"100%",maxWidth:320,animation:"popIn .28s ease",textAlign:"center"}} onClick={function(e){ e.stopPropagation(); }}>
-            <div style={{fontSize:44,marginBottom:12}}>🗑️</div>
+            <div style={{fontSize:44,marginBottom:12}}>🗑</div>
             <h3 style={{fontSize:18,fontWeight:900,margin:"0 0 10px"}}>정말 삭제할까요?</h3>
             <p style={{color:"#64748b",fontSize:14,margin:"0 0 4px"}}><strong>{delConfirm.item.name}</strong>을 삭제합니다.</p>
             <p style={{color:"#94a3b8",fontSize:12,margin:"0 0 24px"}}>삭제하면 복구할 수 없어요</p>
