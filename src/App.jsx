@@ -1090,7 +1090,9 @@ export default function App() {
           <div style={{paddingBottom:8}}>
             <div style={{padding:"20px 16px 0"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>{String.fromCodePoint(0x1F4C6)} 이번 주 예약</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:18,lineHeight:1}}>{String.fromCodePoint(128198)}</span>이번 주 예약
+                </h2>
                 <span style={{color:"#94a3b8",fontSize:11,fontWeight:600}}>{today.getMonth()+1}월</span>
               </div>
               <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:14}}>
@@ -1165,7 +1167,9 @@ export default function App() {
             </div>
             <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0}}>{String.fromCodePoint(0x1F4C5)} 오늘의 예약 현황</h2>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:18,lineHeight:1}}>{String.fromCodePoint(128197)}</span>오늘의 예약 현황
+                </h2>
                 <span style={{background:"#ede9fe",color:"#6366f1",fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:99}}>{todayR.length}건</span>
               </div>
               {todayR.length===0
