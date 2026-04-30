@@ -1152,14 +1152,13 @@ export default function App() {
                               color:(isToday||isSelected)?"white":isWeekend?"#ef4444":isPast?"#cbd5e1":"#374151",
                               boxShadow:isSelected?"0 3px 10px rgba(67,56,202,.4)":"none",
                             }}>{day}</div>
-                            {/* 예약 도트 - 승인/대기 각각 정확하게 */}
-                            <div style={{marginTop:3,display:"flex",justifyContent:"center",gap:2,minHeight:6}}>
-                              {Array.from({length:Math.min(approvedCnt,3)},function(_,i){
-                                return <div key={"a"+i} style={{width:5,height:5,borderRadius:99,background:"#6366f1"}}></div>;
-                              })}
-                              {Array.from({length:Math.min(pendingCnt,2)},function(_,i){
-                                return <div key={"p"+i} style={{width:5,height:5,borderRadius:99,background:"#fbbf24"}}></div>;
-                              })}
+                            {/* 예약 도트: 승인/대기 각 최대 1개 + 숫자 뱃지 */}
+                            <div style={{marginTop:3,display:"flex",justifyContent:"center",alignItems:"center",gap:2,minHeight:6}}>
+                              {approvedCnt>0&&<div style={{width:5,height:5,borderRadius:99,background:"#6366f1",flexShrink:0}}></div>}
+                              {pendingCnt>0&&<div style={{width:5,height:5,borderRadius:99,background:"#fbbf24",flexShrink:0}}></div>}
+                              {(approvedCnt+pendingCnt)>2&&(
+                                <span style={{fontSize:8,fontWeight:800,color:"#6366f1",lineHeight:1}}>{approvedCnt+pendingCnt}</span>
+                              )}
                             </div>
                           </div>
                         );
