@@ -976,7 +976,16 @@ export default function App() {
   var filtered = cat==="전체" ? allItems : allItems.filter(function(i){ return i.category===cat; });
   var todayStr = fmtDate(today,0);
   var todayR   = res.filter(function(r){ return r.date===todayStr; });
-  var myR      = res.filter(function(r){ return r.teacher_name===user.name; });
+  var myR = res.filter(function(r){ return r.teacher_name===user.name; }).slice().sort(function(a,b){
+    // 시설명 기준 시설/교구 구분 (facList에 있으면 시설, 없으면 교구)
+    var facNames=facList.map(function(f){ return f.name; });
+    var aIsFac=facNames.indexOf(a.facility_name)>=0;
+    var bIsFac=facNames.indexOf(b.facility_name)>=0;
+    if(aIsFac&&!bIsFac) return -1;
+    if(!aIsFac&&bIsFac) return 1;
+    // 같은 분류 내에서 날짜순
+    return (a.date||"").localeCompare(b.date||"","ko");
+  });
   var pending  = res.filter(function(r){ return r.status==="대기"; }).length;
   var myNotifs = notifs.filter(function(n){ return n.recipient_name===user.name; });
   var unreadCnt= myNotifs.filter(function(n){ return !n.is_read; }).length;
@@ -1032,35 +1041,40 @@ export default function App() {
       )}
 
       {/* 헤더 */}
-      <div style={{background:"linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4338ca 100%)",padding:"22px 20px 36px",position:"relative",overflow:"hidden"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",position:"relative"}}>
-          <div>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <div style={{width:28,height:28,borderRadius:9,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>🏫</div>
-              <p style={{color:"rgba(255,255,255,.55)",fontSize:12,margin:0,fontWeight:600}}>소정초등학교</p>
-            </div>
-            <h1 style={{color:"white",fontSize:20,fontWeight:900,margin:"0 0 6px"}}>스마트 예약 시스템</h1>
-            <p style={{color:"rgba(255,255,255,.6)",fontSize:12,margin:0}}>{today.getMonth()+1}월 {today.getDate()}일({DAY_KR[today.getDay()]}) · {user.name} {user.role==="admin"?"관리자":"선생님"}</p>
+      <div style={{background:"linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4338ca 100%)",padding:"14px 16px 32px",position:"relative",overflow:"hidden"}}>
+        {/* 상단 컨트롤 바 */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <div style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🏫</div>
+            <p style={{color:"rgba(255,255,255,.55)",fontSize:11,margin:0,fontWeight:600}}>소정초등학교</p>
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:7,alignItems:"flex-end"}}>
-            {/* 알림 벨 */}
-            <div onClick={function(){
-                refreshNotifs();
-                setNotiPanel(function(v){ return !v; });
-                if(!notiPanel) setTimeout(markAllRead, 500);
-              }}
-              style={{background:"rgba(255,255,255,.13)",border:"1px solid rgba(255,255,255,.18)",borderRadius:14,padding:"9px 14px",textAlign:"center",cursor:"pointer",minWidth:56,position:"relative"}}>
-              <div style={{fontSize:20}}>🔔</div>
-              <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:2}}>알림</div>
-              {unreadCnt>0&&(
-                <div style={{position:"absolute",top:-4,right:-4,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",animation:"pulse 2s infinite"}}>{unreadCnt}</div>
-              )}
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            {/* 알림 */}
+            <div onClick={function(){ refreshNotifs(); setNotiPanel(function(v){ return !v; }); if(!notiPanel) setTimeout(markAllRead,500); }}
+              style={{background:"rgba(255,255,255,.13)",border:"1px solid rgba(255,255,255,.18)",borderRadius:10,padding:"6px 10px",cursor:"pointer",position:"relative",display:"flex",alignItems:"center",gap:4}}>
+              <span style={{fontSize:15}}>🔔</span>
+              <span style={{color:"white",fontSize:10,fontWeight:700}}>알림</span>
+              {unreadCnt>0&&<div style={{position:"absolute",top:-4,right:-4,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",animation:"pulse 2s infinite"}}>{unreadCnt}</div>}
             </div>
-            <button onClick={function(){ setDarkMode(function(v){ return !v; }); }} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"6px 10px",color:"rgba(255,255,255,.7)",fontSize:13,cursor:"pointer"}}>{darkMode?"☀":"🌙"}</button>
-            <button onClick={logout} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"6px 10px",color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,cursor:"pointer"}}>로그아웃</button>
+            {/* 다크모드 */}
+            <button onClick={function(){ setDarkMode(function(v){ return !v; }); }}
+              style={{background:"rgba(255,255,255,.13)",border:"1px solid rgba(255,255,255,.18)",borderRadius:10,padding:"6px 10px",color:"rgba(255,255,255,.8)",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center"}}>
+              {darkMode?"☀":"🌙"}
+            </button>
+            {/* 로그아웃 */}
+            <button onClick={logout}
+              style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"6px 10px",color:"rgba(255,255,255,.55)",fontSize:10,fontWeight:700,cursor:"pointer"}}>
+              로그아웃
+            </button>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginTop:20}}>
+        {/* 타이틀 (중앙 정렬) */}
+        <div style={{textAlign:"center",marginBottom:16}}>
+          <h1 style={{color:"white",fontSize:20,fontWeight:900,margin:"0 0 4px"}}>스마트 예약 시스템</h1>
+          <p style={{color:"rgba(255,255,255,.6)",fontSize:12,margin:0}}>{today.getMonth()+1}월 {today.getDate()}일({DAY_KR[today.getDay()]}) · {user.name} {user.role==="admin"?"관리자":"선생님"}</p>
+        </div>
+        {/* 통계 카드 */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           {[{l:"오늘 예약",v:todayR.length,u:"건",c:"#a5b4fc"},{l:"대기 중",v:pending,u:"건",c:"#fcd34d"},{l:"이용 가능",v:facList.length,u:"개",c:"#6ee7b7"}].map(function(s){
             return <div key={s.l} style={{background:"rgba(255,255,255,.1)",backdropFilter:"blur(10px)",borderRadius:15,padding:"13px 10px",textAlign:"center",border:"1px solid rgba(255,255,255,.12)"}}>
               <div style={{color:s.c,fontSize:22,fontWeight:900,lineHeight:1}}>{s.v}<span style={{fontSize:12,fontWeight:700}}>{s.u}</span></div>
@@ -1089,12 +1103,140 @@ export default function App() {
         {/* ─ 홈 ─ */}
         {!loadingData&&tab==="home"&&(
           <div style={{paddingBottom:8}}>
+            {/* 오늘의 예약 현황 (상단) */}
             <div style={{padding:"20px 16px 0"}}>
-              {/* 월별 달력 헤더 */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                <h2 style={{fontSize:15,fontWeight:800,margin:0,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:18,lineHeight:1}}>{String.fromCodePoint(128197) + "\uFE0F"}</span>오늘의 예약 현황
+                </h2>
+                <span style={{background:"#ede9fe",color:"#6366f1",fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:99}}>{todayR.length}건</span>
+              </div>
+              {todayR.length===0
+                ?<div style={{background:"white",borderRadius:18,padding:"24px 36px",textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:22}}>
+                  <div style={{fontSize:36,marginBottom:10}}>📭</div>
+                  <div style={{fontSize:13,fontWeight:600}}>오늘 예약이 없어요</div>
+                </div>
+                :<div style={{marginBottom:22}}>
+                  {todayR.map(function(r){
+                    return <div key={r.id} onClick={function(){ setQr(r); }} style={{background:"white",borderRadius:18,padding:"15px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:13,boxShadow:"0 2px 10px rgba(0,0,0,.06)",cursor:"pointer"}}>
+                      <div style={{width:46,height:46,borderRadius:14,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{r.icon}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{r.facility_name}</div>
+                        <div style={{fontSize:12,color:"#64748b"}}>{r.time_slot} · {r.purpose}</div>
+                      </div>
+                      <span style={{background:r.status==="승인"?"#dcfce7":"#fef3c7",color:r.status==="승인"?"#16a34a":"#d97706",padding:"4px 11px",borderRadius:99,fontSize:11,fontWeight:800,flexShrink:0}}>{r.status}</span>
+                    </div>;
+                  })}
+                </div>
+              }
+            </div>
+
+            {/* 월별 예약 현황 (하단) */}
+            <div style={{padding:"0 16px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
                 <h2 style={{fontSize:15,fontWeight:800,margin:0,display:"flex",alignItems:"center",gap:6}}>
                   <span style={{fontSize:18,lineHeight:1}}>{String.fromCodePoint(128198) + "\uFE0F"}</span>월별 예약 현황
                 </h2>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <button onClick={function(){ setCalMonth(function(m){ return m-1; }); }}
+                    style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:26,height:26,cursor:"pointer",fontSize:13,color:"#6366f1",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+                  <span style={{fontSize:12,fontWeight:700,color:"#374151",minWidth:60,textAlign:"center"}}>
+                    {(function(){ var d=new Date(today); d.setMonth(d.getMonth()+calMonth); return d.getFullYear()+"년 "+(d.getMonth()+1)+"월"; })()}
+                  </span>
+                  <button onClick={function(){ setCalMonth(function(m){ return m+1; }); }}
+                    style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:26,height:26,cursor:"pointer",fontSize:13,color:"#6366f1",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+                </div>
+              </div>
+              <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:14}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:6}}>
+                  {["일","월","화","수","목","금","토"].map(function(d,i){
+                    return <div key={i} style={{textAlign:"center",fontSize:10,fontWeight:700,color:i===0||i===6?"#ef4444":"#94a3b8",paddingBottom:4}}>{d}</div>;
+                  })}
+                </div>
+                {(function(){
+                  var base=new Date(today.getFullYear(),today.getMonth()+calMonth,1);
+                  var year=base.getFullYear(), month=base.getMonth();
+                  var firstDay=base.getDay();
+                  var daysInMonth=new Date(year,month+1,0).getDate();
+                  var cells=[];
+                  for(var i=0;i<firstDay;i++) cells.push(null);
+                  for(var j=1;j<=daysInMonth;j++) cells.push(j);
+                  while(cells.length%7!==0) cells.push(null);
+                  return (
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+                      {cells.map(function(day,idx){
+                        if(!day) return <div key={idx}></div>;
+                        var d=new Date(year,month,day);
+                        var dStr=(d.getMonth()+1)+"/"+d.getDate()+"("+DAY_KR[d.getDay()]+")";
+                        var isToday=d.toDateString()===today.toDateString();
+                        var isWeekend=d.getDay()===0||d.getDay()===6;
+                        var isSelected=selectedHomeDate===dStr;
+                        var dayResAll=res.filter(function(r){ return r.date===dStr; });
+                        var approvedCnt=dayResAll.filter(function(r){ return r.status==="승인"; }).length;
+                        var pendingCnt=dayResAll.filter(function(r){ return r.status==="대기"; }).length;
+                        var clickable=!isToday;
+                        return (
+                          <div key={idx} onClick={function(){ if(clickable) setSelectedHomeDate(isSelected?null:dStr); }}
+                            style={{textAlign:"center",cursor:clickable?"pointer":"default"}}>
+                            <div style={{width:30,height:30,borderRadius:99,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"center",
+                              background:isSelected?"#4338ca":isToday?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",
+                              border:isSelected?"none":isToday?"none":"1.5px solid "+(dayResAll.length>0?"#c7d2fe":"#f1f5f9"),
+                              fontSize:11,fontWeight:(isToday||isSelected)?900:500,
+                              color:(isToday||isSelected)?"white":isWeekend?"#ef4444":"#374151",
+                            }}>{day}</div>
+                            <div style={{marginTop:3,display:"flex",justifyContent:"center",alignItems:"center",gap:2,minHeight:6}}>
+                              {approvedCnt>0&&<div style={{width:5,height:5,borderRadius:99,background:"#6366f1",flexShrink:0}}></div>}
+                              {pendingCnt>0&&<div style={{width:5,height:5,borderRadius:99,background:"#fbbf24",flexShrink:0}}></div>}
+                              {(approvedCnt+pendingCnt)>2&&<span style={{fontSize:8,fontWeight:800,color:"#6366f1",lineHeight:1}}>{approvedCnt+pendingCnt}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                <div style={{display:"flex",gap:14,marginTop:12,paddingTop:10,borderTop:"1px solid #f1f5f9",justifyContent:"flex-end"}}>
+                  {[["#6366f1","승인"],["#fbbf24","대기"]].map(function(item){
+                    return <div key={item[1]} style={{display:"flex",alignItems:"center",gap:5}}>
+                      <div style={{width:6,height:6,borderRadius:99,background:item[0]}}></div>
+                      <span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{item[1]}</span>
+                    </div>;
+                  })}
+                </div>
+              </div>
+              {selectedHomeDate&&(function(){
+                var selRes=res.filter(function(r){ return r.date===selectedHomeDate; });
+                return (
+                  <div style={{background:"linear-gradient(135deg,#ede9fe,#e0e7ff)",borderRadius:16,padding:"14px 16px",marginBottom:16,animation:"fadeUp .25s ease"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                      <span style={{fontSize:13,fontWeight:800,color:"#4338ca"}}>{selectedHomeDate} 예약</span>
+                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                        <span style={{background:"#6366f1",color:"white",fontSize:11,fontWeight:800,padding:"2px 10px",borderRadius:99}}>{selRes.length}건</span>
+                        <button onClick={function(){ setSelectedHomeDate(null); }} style={{background:"rgba(99,102,241,.15)",border:"none",borderRadius:99,width:22,height:22,color:"#6366f1",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>✕</button>
+                      </div>
+                    </div>
+                    {selRes.length===0
+                      ?<div style={{textAlign:"center",padding:"12px 0",color:"#94a3b8",fontSize:13}}>이 날짜는 예약이 없어요</div>
+                      :selRes.map(function(r){
+                        return (
+                          <div key={r.id} onClick={function(){ setQr(r); }}
+                            style={{background:"white",borderRadius:12,padding:"10px 12px",marginBottom:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer",boxShadow:"0 2px 6px rgba(0,0,0,.06)"}}>
+                            <div style={{width:36,height:36,borderRadius:10,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.icon}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontWeight:700,fontSize:13}}>{r.facility_name}</div>
+                              <div style={{fontSize:11,color:"#64748b"}}>{r.time_slot} · {r.teacher_name}</div>
+                            </div>
+                            <span style={{background:r.status==="승인"?"#dcfce7":r.status==="거절"?"#fee2e2":"#fef3c7",color:r.status==="승인"?"#16a34a":r.status==="거절"?"#ef4444":"#d97706",padding:"3px 9px",borderRadius:99,fontSize:10,fontWeight:800,flexShrink:0}}>{r.status}</span>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <button onClick={function(){ setCalMonth(function(m){ return m-1; }); }}
                     style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:26,height:26,cursor:"pointer",fontSize:13,color:"#6366f1",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
@@ -1166,86 +1308,15 @@ export default function App() {
                     </div>
                   );
                 })()}
-                {/* 범례 */}
-                <div style={{display:"flex",gap:14,marginTop:12,paddingTop:10,borderTop:"1px solid #f1f5f9",justifyContent:"flex-end"}}>
-                  {[["#6366f1","승인"],["#fbbf24","대기"]].map(function(item){
-                    return <div key={item[1]} style={{display:"flex",alignItems:"center",gap:5}}>
-                      <div style={{width:6,height:6,borderRadius:99,background:item[0]}}></div>
-                      <span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{item[1]}</span>
-                    </div>;
-                  })}
-                </div>
               </div>
-
-              {/* 날짜 클릭 시 해당 날 예약 현황 (오늘 제외) */}
-              {selectedHomeDate&&(function(){
-                var selRes=res.filter(function(r){ return r.date===selectedHomeDate; });
-                return (
-                  <div style={{background:"linear-gradient(135deg,#ede9fe,#e0e7ff)",borderRadius:16,padding:"14px 16px",marginBottom:16,animation:"fadeUp .25s ease"}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                      <span style={{fontSize:13,fontWeight:800,color:"#4338ca"}}>{selectedHomeDate} 예약</span>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{background:"#6366f1",color:"white",fontSize:11,fontWeight:800,padding:"2px 10px",borderRadius:99}}>{selRes.length}건</span>
-                        <button onClick={function(){ setSelectedHomeDate(null); }}
-                          style={{background:"rgba(99,102,241,.15)",border:"none",borderRadius:99,width:22,height:22,color:"#6366f1",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>✕</button>
-                      </div>
-                    </div>
-                    {selRes.length===0
-                      ?<div style={{textAlign:"center",padding:"12px 0",color:"#94a3b8",fontSize:13}}>이 날짜는 예약이 없어요</div>
-                      :selRes.map(function(r){
-                        return (
-                          <div key={r.id} onClick={function(){ setQr(r); }}
-                            style={{background:"white",borderRadius:12,padding:"10px 12px",marginBottom:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer",boxShadow:"0 2px 6px rgba(0,0,0,.06)"}}>
-                            <div style={{width:36,height:36,borderRadius:10,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.icon}</div>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontWeight:700,fontSize:13}}>{r.facility_name}</div>
-                              <div style={{fontSize:11,color:"#64748b"}}>{r.time_slot} · {r.teacher_name}</div>
-                            </div>
-                            <span style={{
-                              background:r.status==="승인"?"#dcfce7":r.status==="거절"?"#fee2e2":"#fef3c7",
-                              color:r.status==="승인"?"#16a34a":r.status==="거절"?"#ef4444":"#d97706",
-                              padding:"3px 9px",borderRadius:99,fontSize:10,fontWeight:800,flexShrink:0
-                            }}>{r.status}</span>
-                          </div>
-                        );
-                      })
-                    }
-                  </div>
-                );
-              })()}
             </div>
-            <div style={{padding:"0 16px"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                <h2 style={{fontSize:15,fontWeight:800,margin:0,display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:18,lineHeight:1}}>{String.fromCodePoint(128197) + "\uFE0F"}</span>오늘의 예약 현황
-                </h2>
-                <span style={{background:"#ede9fe",color:"#6366f1",fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:99}}>{todayR.length}건</span>
-              </div>
-              {todayR.length===0
-                ?<div style={{background:"white",borderRadius:18,padding:36,textAlign:"center",color:"#94a3b8",boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
-                  <div style={{fontSize:36,marginBottom:10}}>📭</div>
-                  <div style={{fontSize:13,fontWeight:600}}>오늘 예약이 없어요</div>
-                </div>
-                :todayR.map(function(r){
-                  return <div key={r.id} onClick={function(){ setQr(r); }} style={{background:"white",borderRadius:18,padding:"15px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:13,boxShadow:"0 2px 10px rgba(0,0,0,.06)",cursor:"pointer"}}>
-                    <div style={{width:46,height:46,borderRadius:14,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{r.icon}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{r.facility_name}</div>
-                      <div style={{fontSize:12,color:"#64748b"}}>{r.time_slot} · {r.purpose}</div>
-                    </div>
-                    <span style={{background:r.status==="승인"?"#dcfce7":"#fef3c7",color:r.status==="승인"?"#16a34a":"#d97706",padding:"4px 11px",borderRadius:99,fontSize:11,fontWeight:800,flexShrink:0}}>{r.status}</span>
-                  </div>;
-                })
-              }
-            </div>
-          </div>
         )}
 
         {/* ─ 시설 ─ */}
         {!loadingData&&tab==="facilities"&&(
           <div style={{padding:"22px 16px"}}>
             <h2 style={{fontSize:15,fontWeight:800,margin:"0 0 18px"}}>🏫 특별실 예약</h2>
-            {facList.map(function(f){
+            {facList.slice().sort(function(a,b){ return a.name.localeCompare(b.name,"ko"); }).map(function(f){
               return <div key={f.id} onClick={function(){ setModal(f); setStep(0); }} style={{background:"white",borderRadius:20,padding:18,marginBottom:12,display:"flex",gap:16,cursor:"pointer",boxShadow:"0 2px 10px rgba(0,0,0,.06)",borderLeft:"5px solid "+f.color}}>
                 <div style={{width:54,height:54,borderRadius:16,background:f.color+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:27,flexShrink:0}}>{f.icon}</div>
                 <div style={{flex:1}}>
@@ -1623,8 +1694,20 @@ export default function App() {
                   <h2 style={{fontSize:15,fontWeight:800,margin:0}}>🏫 특별실 관리</h2>
                   <button onClick={function(){openReg("facility");}} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:12,padding:"8px 16px",fontSize:12,fontWeight:800,cursor:"pointer"}}>+ 새 시설</button>
                 </div>
-                {facList.map(function(f){
+                <p style={{fontSize:11,color:"#94a3b8",margin:"0 0 10px"}}>▲▼ 버튼으로 순서를 조정하세요. 시설 탭에서는 가나다순으로 표시됩니다.</p>
+                {facList.map(function(f,idx){
                   return <div key={f.id} style={{background:"white",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:"4px solid "+f.color}}>
+                    {/* 순서 조정 버튼 */}
+                    <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0}}>
+                      <button onClick={function(){
+                        if(idx===0) return;
+                        setFacList(function(v){ var n=v.slice(); var t=n[idx-1]; n[idx-1]=n[idx]; n[idx]=t; return n; });
+                      }} disabled={idx===0} style={{background:idx===0?"#f8fafc":"#ede9fe",color:idx===0?"#d1d5db":"#6366f1",border:"none",borderRadius:5,width:20,height:18,fontSize:10,cursor:idx===0?"default":"pointer",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>▲</button>
+                      <button onClick={function(){
+                        if(idx===facList.length-1) return;
+                        setFacList(function(v){ var n=v.slice(); var t=n[idx+1]; n[idx+1]=n[idx]; n[idx]=t; return n; });
+                      }} disabled={idx===facList.length-1} style={{background:idx===facList.length-1?"#f8fafc":"#ede9fe",color:idx===facList.length-1?"#d1d5db":"#6366f1",border:"none",borderRadius:5,width:20,height:18,fontSize:10,cursor:idx===facList.length-1?"default":"pointer",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>▼</button>
+                    </div>
                     <div style={{width:38,height:38,borderRadius:11,background:f.color+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{f.icon}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:800,fontSize:13}}>{f.name}</div>
@@ -2140,7 +2223,5 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
-    </div>
   );
 }
