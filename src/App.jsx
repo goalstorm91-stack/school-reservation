@@ -1309,7 +1309,6 @@ export default function App() {
                   );
                 })()}
               </div>
-            </div>
         )}
 
         {/* ─ 시설 ─ */}
@@ -2223,5 +2222,6 @@ export default function App() {
           </div>
         </div>
       )}
+    </div>
   );
 }
