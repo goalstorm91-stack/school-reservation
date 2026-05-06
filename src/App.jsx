@@ -217,7 +217,7 @@ function NoticeBanner(props) {
   var n = noticeList[cur];
   var typeBg = {urgent:"rgba(239,68,68,.18)",info:"rgba(99,102,241,.15)",new:"rgba(52,211,153,.15)"};
   return (
-    <div style={{width:"100%",maxWidth:380,marginBottom:14}}>
+    <div style={{width:"100%",marginBottom:0}}>
       <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={function(){ setSel(n); }}
         style={{background:typeBg[n.type]||"rgba(255,255,255,.11)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,.22)",borderRadius:16,padding:"13px 14px",cursor:"pointer",userSelect:"none",position:"relative",overflow:"hidden"}}>
         {urgent>0&&<div style={{position:"absolute",top:8,right:36,background:"#ef4444",color:"white",fontSize:9,fontWeight:900,borderRadius:99,padding:"2px 7px",animation:"pulse 2s infinite"}}>{urgent}건 긴급</div>}
@@ -322,21 +322,29 @@ function LoginScreen(props) {
       <div style={{position:"fixed",top:"10%",left:"15%",width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(99,102,241,.18),transparent 70%)",pointerEvents:"none"}}></div>
       <div style={{position:"fixed",bottom:"15%",right:"10%",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,.15),transparent 70%)",pointerEvents:"none"}}></div>
 
-      <div style={{textAlign:"center",marginBottom:22,animation:"fadeUp .5s ease"}}>
-        <div style={{width:70,height:70,borderRadius:22,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,margin:"0 auto 14px",boxShadow:"0 8px 32px rgba(99,102,241,.4)"}}>🏫</div>
-        <h1 style={{color:"white",fontSize:22,fontWeight:900,margin:"0 0 5px"}}>스마트 예약 시스템</h1>
-        <p style={{color:"rgba(255,255,255,.42)",fontSize:12,margin:0}}>소정초등학교 · 시설·교구 통합 예약</p>
-      </div>
+      {/* 전체 컨텐츠를 하나의 컨테이너로 통일 */}
+      <div style={{width:"100%",maxWidth:380,display:"flex",flexDirection:"column",alignItems:"stretch"}}>
+        {/* 로고 & 제목 */}
+        <div style={{textAlign:"center",marginBottom:22,animation:"fadeUp .5s ease"}}>
+          <div style={{width:70,height:70,borderRadius:22,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,margin:"0 auto 14px",boxShadow:"0 8px 32px rgba(99,102,241,.4)"}}>🏫</div>
+          <h1 style={{color:"white",fontSize:22,fontWeight:900,margin:"0 0 5px"}}>스마트 예약 시스템</h1>
+          <p style={{color:"rgba(255,255,255,.42)",fontSize:12,margin:0}}>소정초등학교 · 시설·교구 통합 예약</p>
+        </div>
 
-      <NoticeBanner notices={props.notices} />
+        {/* 공지사항 배너 - 컨테이너 너비에 맞춤 */}
+        <div style={{marginBottom:14}}>
+          <NoticeBanner notices={props.notices} fullWidth={true}/>
+        </div>
 
-      <div style={{width:"100%",maxWidth:380,background:"rgba(255,255,255,.07)",borderRadius:18,padding:5,marginBottom:16,display:"flex",border:"1px solid rgba(255,255,255,.1)"}}>
-        {[["login"," 로그인"],["signup"," 회원가입"]].map(function(item){
-          return <button key={item[0]} onClick={function(){ switchMode(item[0]); }} style={{flex:1,border:"none",borderRadius:13,padding:11,fontSize:13,fontWeight:800,cursor:"pointer",transition:"all .22s",background:mode===item[0]?"white":"transparent",color:mode===item[0]?"#312e81":"rgba(255,255,255,.45)"}}>{item[1]}</button>;
-        })}
-      </div>
+        {/* 로그인/회원가입 탭 */}
+        <div style={{background:"rgba(255,255,255,.07)",borderRadius:18,padding:5,marginBottom:16,display:"flex",border:"1px solid rgba(255,255,255,.1)"}}>
+          {[["login","🔐 로그인"],["signup","✏ 회원가입"]].map(function(item){
+            return <button key={item[0]} onClick={function(){ switchMode(item[0]); }} style={{flex:1,border:"none",borderRadius:13,padding:11,fontSize:13,fontWeight:800,cursor:"pointer",transition:"all .22s",background:mode===item[0]?"white":"transparent",color:mode===item[0]?"#312e81":"rgba(255,255,255,.45)"}}>{item[1]}</button>;
+          })}
+        </div>
 
-      <div style={{width:"100%",maxWidth:380,background:"rgba(255,255,255,.07)",backdropFilter:"blur(24px)",border:"1px solid rgba(255,255,255,.13)",borderRadius:24,padding:"26px 22px"}}>
+        {/* 폼 카드 */}
+        <div style={{background:"rgba(255,255,255,.07)",backdropFilter:"blur(24px)",border:"1px solid rgba(255,255,255,.13)",borderRadius:24,padding:"26px 22px"}}>
 
         {mode==="login"&&(
           <div>
@@ -416,8 +424,9 @@ function LoginScreen(props) {
             </div>
           )
         )}
-      </div>
-      <p style={{color:"rgba(255,255,255,.18)",fontSize:11,marginTop:20,textAlign:"center"}}>데모 비밀번호: 선생님 1234 · 관리자 0000</p>
+        </div>{/* 폼 카드 닫기 */}
+        <p style={{color:"rgba(255,255,255,.18)",fontSize:11,marginTop:16,textAlign:"center"}}>데모 비밀번호: 선생님 1234 · 관리자 0000</p>
+      </div>{/* 메인 컨테이너 닫기 */}
     </div>
   );
 }
@@ -1236,79 +1245,6 @@ export default function App() {
               })()}
             </div>
           </div>
-        )}
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <button onClick={function(){ setCalMonth(function(m){ return m-1; }); }}
-                    style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:26,height:26,cursor:"pointer",fontSize:13,color:"#6366f1",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
-                  <span style={{fontSize:12,fontWeight:700,color:"#374151",minWidth:60,textAlign:"center"}}>
-                    {(function(){ var d=new Date(today); d.setMonth(d.getMonth()+calMonth); return d.getFullYear()+"년 "+(d.getMonth()+1)+"월"; })()}
-                  </span>
-                  <button onClick={function(){ setCalMonth(function(m){ return m+1; }); }}
-                    style={{background:"none",border:"1px solid #e8ecf0",borderRadius:8,width:26,height:26,cursor:"pointer",fontSize:13,color:"#6366f1",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
-                </div>
-              </div>
-
-              {/* 월별 달력 */}
-              <div style={{background:"white",borderRadius:18,padding:"14px 12px",boxShadow:"0 2px 10px rgba(0,0,0,.06)",marginBottom:14}}>
-                {/* 요일 헤더 */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:6}}>
-                  {["일","월","화","수","목","금","토"].map(function(d,i){
-                    return <div key={i} style={{textAlign:"center",fontSize:10,fontWeight:700,color:i===0||i===6?"#ef4444":"#94a3b8",paddingBottom:4}}>{d}</div>;
-                  })}
-                </div>
-                {/* 날짜 셀 */}
-                {(function(){
-                  var base=new Date(today.getFullYear(),today.getMonth()+calMonth,1);
-                  var year=base.getFullYear(), month=base.getMonth();
-                  var firstDay=base.getDay();
-                  var daysInMonth=new Date(year,month+1,0).getDate();
-                  var cells=[];
-                  for(var i=0;i<firstDay;i++) cells.push(null);
-                  for(var j=1;j<=daysInMonth;j++) cells.push(j);
-                  while(cells.length%7!==0) cells.push(null);
-                  return (
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
-                      {cells.map(function(day,idx){
-                        if(!day) return <div key={idx}></div>;
-                        var d=new Date(year,month,day);
-                        var dStr=(d.getMonth()+1)+"/"+d.getDate()+"("+DAY_KR[d.getDay()]+")";
-                        var isToday=d.toDateString()===today.toDateString();
-                        var isPast=d<new Date(today.getFullYear(),today.getMonth(),today.getDate());
-                        var isWeekend=d.getDay()===0||d.getDay()===6;
-                        var isSelected=selectedHomeDate===dStr;
-                        var dayResAll=res.filter(function(r){ return r.date===dStr; });
-                        var approvedCnt=dayResAll.filter(function(r){ return r.status==="승인"; }).length;
-                        var pendingCnt=dayResAll.filter(function(r){ return r.status==="대기"; }).length;
-                        // 오늘은 클릭 불가 (오늘의 예약 현황에서 보임)
-                        var clickable = !isToday;
-                        return (
-                          <div key={idx}
-                            onClick={function(){ if(clickable) setSelectedHomeDate(isSelected?null:dStr); }}
-                            style={{textAlign:"center",cursor:clickable?"pointer":"default"}}>
-                            <div style={{
-                              width:30,height:30,borderRadius:99,margin:"0 auto",
-                              display:"flex",alignItems:"center",justifyContent:"center",
-                              background:isSelected?"#4338ca":isToday?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",
-                              border:isSelected?"none":isToday?"none":"1.5px solid "+(dayResAll.length>0?"#c7d2fe":"#f1f5f9"),
-                              fontSize:11,fontWeight:(isToday||isSelected)?900:500,
-                              color:(isToday||isSelected)?"white":isWeekend?"#ef4444":isPast?"#cbd5e1":"#374151",
-                              boxShadow:isSelected?"0 3px 10px rgba(67,56,202,.4)":"none",
-                            }}>{day}</div>
-                            {/* 예약 도트: 승인/대기 각 최대 1개 + 숫자 뱃지 */}
-                            <div style={{marginTop:3,display:"flex",justifyContent:"center",alignItems:"center",gap:2,minHeight:6}}>
-                              {approvedCnt>0&&<div style={{width:5,height:5,borderRadius:99,background:"#6366f1",flexShrink:0}}></div>}
-                              {pendingCnt>0&&<div style={{width:5,height:5,borderRadius:99,background:"#fbbf24",flexShrink:0}}></div>}
-                              {(approvedCnt+pendingCnt)>2&&(
-                                <span style={{fontSize:8,fontWeight:800,color:"#6366f1",lineHeight:1}}>{approvedCnt+pendingCnt}</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </div>
         )}
 
         {/* ─ 시설 ─ */}
@@ -2222,6 +2158,7 @@ export default function App() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
