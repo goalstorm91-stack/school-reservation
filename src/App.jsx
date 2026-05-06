@@ -1429,14 +1429,6 @@ export default function App() {
             {/* 승인 */}
             {adminTab==="approval"&&(
               <div>
-                <div style={{display:"flex",gap:8,marginBottom:14}}>
-                  {[["전체",res.length,"#6366f1"],["대기",res.filter(function(r){return r.status==="대기";}).length,"#d97706"],["승인",res.filter(function(r){return r.status==="승인";}).length,"#16a34a"],["거절",res.filter(function(r){return r.status==="거절";}).length,"#ef4444"]].map(function(item){
-                    return <div key={item[0]} style={{flex:1,background:"white",borderRadius:12,padding:"10px 6px",textAlign:"center",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
-                      <div style={{fontSize:18,fontWeight:900,color:item[2]}}>{item[1]}</div>
-                      <div style={{fontSize:10,color:"#94a3b8",marginTop:2,fontWeight:600}}>{item[0]}</div>
-                    </div>;
-                  })}
-                </div>
                 <div style={{display:"flex",gap:7,marginBottom:14}}>
                   <button onClick={function(){ setBulkMode(function(v){ return !v; }); setSelectedRes({}); }}
                     style={{flex:1,background:bulkMode?"#ede9fe":"white",color:bulkMode?"#6366f1":"#64748b",border:"1.5px solid "+(bulkMode?"#6366f1":"#e8ecf0"),borderRadius:12,padding:"9px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
