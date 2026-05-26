@@ -258,63 +258,41 @@ function NoticeBanner(props) {
 
 
 // ── 로그인 / 회원가입 ────────────────────
+// ── Google OAuth 로그인 화면 ──────────────
 function LoginScreen(props) {
-  var onLogin=props.onLogin, onRegister=props.onRegister;
-  var [mode,setMode]=useState("login");
-  var [id,setId]=useState(""), [pw,setPw]=useState("");
-  var [showPw,setShowPw]=useState(false);
-  var [err,setErr]=useState(""), [loading,setLoading]=useState(false);
-  var [autoLogin,setAutoLogin]=useState(false);
-  var [form,setForm]=useState({name:"",id:"",pw:"",pwCheck:"",subject:"",email:"",role:"teacher"});
-  var [showSpw,setShowSpw]=useState(false);
-  var [signErr,setSignErr]=useState(""), [done,setDone]=useState(false);
+  var onLogin = props.onLogin;
+  var [loading, setLoading]     = useState(false);
+  var [err, setErr]             = useState("");
+  var [showDemo, setShowDemo]   = useState(false);
+  var [demoId, setDemoId]       = useState("");
+  var [demoPw, setDemoPw]       = useState("");
+  var [demoErr, setDemoErr]     = useState("");
+  var [demoLoading, setDemoLoading] = useState(false);
 
-  function switchMode(m){ setMode(m);setErr("");setSignErr("");setDone(false);setId("");setPw(""); }
-
-  function login(){
-    setErr(""); setLoading(true);
-    sb.get("users","select=*&login_id=eq."+id+"&password=eq."+pw)
-      .then(function(rows){
-        if(rows&&rows.length>0){
-          var u=rows[0];
-          if(autoLogin) savedSession=u;
-          onLogin(u);
-        } else {
-          setErr("아이디 또는 비밀번호가 올바르지 않아요.");
-          setLoading(false);
-        }
-      })
-      .catch(function(e){
-        setErr("연결 오류: Supabase URL/KEY를 확인해주세요.");
-        setLoading(false);
-        console.error(e);
-      });
-  }
-
-  function signup(){
-    setSignErr("");
-    if(!form.name||!form.name.trim()) return setSignErr("이름을 입력해주세요.");
-    if(!form.id||form.id.length<4)    return setSignErr("아이디는 4자 이상이어야 해요.");
-    if(form.pw.length<4)              return setSignErr("비밀번호는 4자 이상이어야 해요.");
-    if(form.pw!==form.pwCheck)        return setSignErr("비밀번호가 일치하지 않아요.");
-    if(!form.subject||!form.subject.trim()) return setSignErr("담당 과목을 입력해주세요.");
-    setLoading(true);
-    sb.post("users",{
-      login_id:form.id, password:form.pw, name:form.name.trim(),
-      role:form.role, subject:form.subject.trim(),
-      email: form.email ? form.email.trim() : null,
-      avatar:form.role==="admin"?"":""
-    }).then(function(){
-      setDone(true); setLoading(false);
-      setTimeout(function(){ switchMode("login"); },2200);
-    }).catch(function(e){
-      setSignErr("가입 오류: "+e.message);
-      setLoading(false);
+  // Google OAuth 로그인
+  function loginWithGoogle() {
+    setLoading(true); setErr("");
+    fetch(SUPABASE_URL + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(window.location.origin), {
+      headers: { "apikey": SUPABASE_KEY }
+    }).then(function(res) {
+      window.location.href = res.url;
+    }).catch(function() {
+      // fetch가 redirect를 막으므로 직접 이동
+      window.location.href = SUPABASE_URL + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(window.location.origin);
     });
   }
-  function setF(k){ return function(e){ setForm(function(v){ var n=Object.assign({},v); n[k]=e.target.value; return n; }); setSignErr(""); }; }
 
-  var inputStyle={width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,.08)",border:"1.5px solid rgba(255,255,255,.14)",borderRadius:13,padding:"14px 16px",color:"white",fontSize:14,fontFamily:"sans-serif"};
+  // 데모 계정 로그인 (기존 방식)
+  function demoLogin() {
+    setDemoErr(""); setDemoLoading(true);
+    sb.get("users", "select=*&login_id=eq." + demoId + "&password=eq." + demoPw)
+      .then(function(rows) {
+        if (rows && rows.length > 0) { onLogin(rows[0]); }
+        else { setDemoErr("아이디 또는 비밀번호가 올바르지 않아요."); setDemoLoading(false); }
+      }).catch(function() { setDemoErr("연결 오류가 발생했어요."); setDemoLoading(false); });
+  }
+
+  var IS = {width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,.08)",border:"1.5px solid rgba(255,255,255,.14)",borderRadius:13,padding:"13px 16px",color:"white",fontSize:14,fontFamily:"sans-serif"};
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(145deg,#0f0c29,#302b63,#24243e)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px 20px 40px",fontFamily:"sans-serif",position:"relative",overflowY:"auto"}}>
@@ -322,7 +300,6 @@ function LoginScreen(props) {
       <div style={{position:"fixed",top:"10%",left:"15%",width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(99,102,241,.18),transparent 70%)",pointerEvents:"none"}}></div>
       <div style={{position:"fixed",bottom:"15%",right:"10%",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,.15),transparent 70%)",pointerEvents:"none"}}></div>
 
-      {/* 전체 컨텐츠를 하나의 컨테이너로 통일 */}
       <div style={{width:"100%",maxWidth:380,display:"flex",flexDirection:"column",alignItems:"stretch"}}>
         {/* 로고 & 제목 */}
         <div style={{textAlign:"center",marginBottom:22,animation:"fadeUp .5s ease"}}>
@@ -331,105 +308,77 @@ function LoginScreen(props) {
           <p style={{color:"rgba(255,255,255,.42)",fontSize:12,margin:0}}>소정초등학교 · 시설·교구 통합 예약</p>
         </div>
 
-        {/* 공지사항 배너 - 컨테이너 너비에 맞춤 */}
+        {/* 공지사항 배너 */}
         <div style={{marginBottom:14}}>
           <NoticeBanner notices={props.notices} fullWidth={true}/>
         </div>
 
-        {/* 로그인/회원가입 탭 */}
-        <div style={{background:"rgba(255,255,255,.07)",borderRadius:18,padding:5,marginBottom:16,display:"flex",border:"1px solid rgba(255,255,255,.1)"}}>
-          {[["login","🔐 로그인"],["signup","✏ 회원가입"]].map(function(item){
-            return <button key={item[0]} onClick={function(){ switchMode(item[0]); }} style={{flex:1,border:"none",borderRadius:13,padding:11,fontSize:13,fontWeight:800,cursor:"pointer",transition:"all .22s",background:mode===item[0]?"white":"transparent",color:mode===item[0]?"#312e81":"rgba(255,255,255,.45)"}}>{item[1]}</button>;
-          })}
-        </div>
+        {/* 메인 로그인 카드 */}
+        <div style={{background:"rgba(255,255,255,.07)",backdropFilter:"blur(24px)",border:"1px solid rgba(255,255,255,.13)",borderRadius:24,padding:"28px 22px"}}>
 
-        {/* 폼 카드 */}
-        <div style={{background:"rgba(255,255,255,.07)",backdropFilter:"blur(24px)",border:"1px solid rgba(255,255,255,.13)",borderRadius:24,padding:"26px 22px"}}>
+          {/* Google 로그인 버튼 */}
+          <button onClick={loginWithGoogle} disabled={loading}
+            style={{width:"100%",background:"white",color:"#1f1f1f",border:"none",borderRadius:14,padding:"14px 20px",fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:20,boxShadow:"0 4px 16px rgba(0,0,0,.2)",opacity:loading?0.8:1}}>
+            {loading ? <Spinner size={20} label="연결 중..."/> : (
+              <>
+                {/* Google G 로고 */}
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                  <path fill="none" d="M0 0h48v48H0z"/>
+                </svg>
+                Google 계정으로 로그인
+              </>
+            )}
+          </button>
 
-        {mode==="login"&&(
-          <div>
-            <div style={{marginBottom:14}}>
-              <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>아이디</label>
-              <input value={id} onChange={function(e){setId(e.target.value);setErr("");}} onKeyDown={function(e){if(e.key==="Enter")login();}} placeholder="아이디 입력" style={inputStyle}/>
-            </div>
-            <div style={{marginBottom:16,position:"relative"}}>
-              <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>비밀번호</label>
-              <input type={showPw?"text":"password"} value={pw} onChange={function(e){setPw(e.target.value);setErr("");}} onKeyDown={function(e){if(e.key==="Enter")login();}} placeholder="비밀번호 입력" style={Object.assign({},inputStyle,{paddingRight:46})}/>
-              <button onClick={function(){setShowPw(function(v){return !v;});}} style={{position:"absolute",right:14,bottom:14,background:"none",border:"none",color:"rgba(255,255,255,.4)",cursor:"pointer",fontSize:17,padding:0}}>{showPw?"":""}</button>
-            </div>
-            {err&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠ {err}</div>}
-            <div onClick={function(){setAutoLogin(function(v){return !v;});}} style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,cursor:"pointer",userSelect:"none"}}>
-              <div style={{width:22,height:22,borderRadius:7,border:"2px solid "+(autoLogin?"#818cf8":"rgba(255,255,255,.25)"),background:autoLogin?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",flexShrink:0}}>
-                {autoLogin&&<span style={{color:"white",fontSize:13,fontWeight:900}}>✓</span>}
-              </div>
-              <span style={{color:"rgba(255,255,255,.8)",fontSize:13,fontWeight:700}}>로그인 상태 유지</span>
-            </div>
-            <button onClick={login} disabled={loading||!id||!pw} style={{width:"100%",background:(loading||!id||!pw)?"rgba(255,255,255,.09)":"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:14,padding:15,fontSize:15,fontWeight:800,cursor:(loading||!id||!pw)?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:20}}>
-              {loading?<Spinner size={18} label="로그인 중..."/>:"로그인 →"}
-            </button>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-              <div style={{flex:1,height:1,background:"rgba(255,255,255,.1)"}}/>
-              <span style={{color:"rgba(255,255,255,.28)",fontSize:11}}>빠른 체험</span>
-              <div style={{flex:1,height:1,background:"rgba(255,255,255,.1)"}}/>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9}}>
-              {[{id:"teacher1",pw:"1234",name:"김서블",avatar:"",role:"teacher"},{id:"teacher2",pw:"1234",name:"이민준",avatar:"",role:"teacher"},{id:"admin",pw:"0000",name:"홍관리",avatar:"",role:"admin"}].map(function(a){
-                return <div key={a.id} onClick={function(){setId(a.id);setPw(a.pw);setErr("");}} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"12px 8px",textAlign:"center",cursor:"pointer"}}>
-                  <div style={{fontSize:22,marginBottom:5}}>{a.avatar}</div>
-                  <div style={{color:"white",fontSize:11,fontWeight:800}}>{a.name}</div>
-                  <div style={{color:"rgba(255,255,255,.38)",fontSize:10,marginTop:3}}>{a.role==="admin"?"관리자":"선생님"}</div>
-                </div>;
-              })}
-            </div>
+          {err&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠ {err}</div>}
+
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <div style={{flex:1,height:1,background:"rgba(255,255,255,.12)"}}/>
+            <span style={{color:"rgba(255,255,255,.35)",fontSize:11}}>또는 데모 계정으로 체험</span>
+            <div style={{flex:1,height:1,background:"rgba(255,255,255,.12)"}}/>
           </div>
-        )}
 
-        {mode==="signup"&&(
-          done?(
-            <div style={{textAlign:"center",padding:"28px 0"}}>
-              <div style={{width:72,height:72,borderRadius:24,background:"linear-gradient(135deg,#10b981,#059669)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,margin:"0 auto 16px"}}></div>
-              <h3 style={{color:"white",fontSize:19,fontWeight:900,margin:"0 0 8px"}}>가입 완료!</h3>
-              <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>잠시 후 로그인 화면으로 이동해요</p>
-            </div>
-          ):(
-            <div>
-              {[{l:"이름",k:"name",ph:"홍길동"},{l:"아이디(4자 이상)",k:"id",ph:"사용할 아이디"},{l:"이메일",k:"email",ph:"예: teacher@school.kr"},{l:"담당 과목",k:"subject",ph:"예: 정보AI, 과학"}].map(function(field){
-                return <div key={field.k} style={{marginBottom:14}}>
-                  <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>{field.l}{field.k==="email"&&<span style={{color:"rgba(255,255,255,.35)",fontWeight:400,marginLeft:4}}>(알림 수신용)</span>}</label>
-                  <input type={field.k==="email"?"email":"text"} value={form[field.k]||""} onChange={setF(field.k)} placeholder={field.ph} style={inputStyle}/>
-                </div>;
-              })}
-              <div style={{marginBottom:14,position:"relative"}}>
-                <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>비밀번호(4자 이상)</label>
-                <input type={showSpw?"text":"password"} value={form.pw} onChange={setF("pw")} placeholder="비밀번호" style={Object.assign({},inputStyle,{paddingRight:46})}/>
-                <button onClick={function(){setShowSpw(function(v){return !v;});}} style={{position:"absolute",right:14,bottom:14,background:"none",border:"none",color:"rgba(255,255,255,.4)",cursor:"pointer",fontSize:17,padding:0}}>{showSpw?"":""}</button>
+          {/* 데모 계정 빠른 선택 */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9,marginBottom:showDemo?14:0}}>
+            {[{id:"teacher1",pw:"1234",name:"김서블",avatar:"👩",role:"teacher"},{id:"teacher2",pw:"1234",name:"이민준",avatar:"👨",role:"teacher"},{id:"admin",pw:"0000",name:"홍관리",avatar:"🧑",role:"admin"}].map(function(a){
+              return <div key={a.id} onClick={function(){setDemoId(a.id);setDemoPw(a.pw);setShowDemo(true);setDemoErr("");}}
+                style={{background:demoId===a.id?"rgba(99,102,241,.3)":"rgba(255,255,255,.07)",border:demoId===a.id?"1.5px solid #818cf8":"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"11px 8px",textAlign:"center",cursor:"pointer",transition:"all .2s"}}>
+                <div style={{fontSize:22,marginBottom:4}}>{a.avatar}</div>
+                <div style={{color:"white",fontSize:11,fontWeight:800}}>{a.name}</div>
+                <div style={{color:"rgba(255,255,255,.38)",fontSize:10,marginTop:2}}>{a.role==="admin"?"관리자":"선생님"}</div>
+              </div>;
+            })}
+          </div>
+
+          {/* 데모 로그인 폼 */}
+          {showDemo&&(
+            <div style={{marginTop:14}}>
+              <div style={{marginBottom:10}}>
+                <input value={demoId} onChange={function(e){setDemoId(e.target.value);setDemoErr("");}} placeholder="아이디" style={IS}/>
               </div>
-              <div style={{marginBottom:14,position:"relative"}}>
-                <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>비밀번호 확인</label>
-                <input type="password" value={form.pwCheck} onChange={setF("pwCheck")} placeholder="비밀번호 재입력" style={Object.assign({},inputStyle,{paddingRight:46})}/>
-                {form.pwCheck&&<span style={{position:"absolute",right:14,bottom:14,fontSize:16}}>{form.pw===form.pwCheck?"✅":"❌"}</span>}
+              <div style={{marginBottom:10}}>
+                <input type="password" value={demoPw} onChange={function(e){setDemoPw(e.target.value);setDemoErr("");}}
+                  onKeyDown={function(e){if(e.key==="Enter")demoLogin();}} placeholder="비밀번호" style={IS}/>
               </div>
-              <div style={{marginBottom:18}}>
-                <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:8}}>역할</label>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-                  {[["teacher","선생님"],["admin","관리자"]].map(function(item){
-                    return <button key={item[0]} onClick={function(){setForm(function(v){return Object.assign({},v,{role:item[0]});});}} style={{background:form.role===item[0]?"rgba(99,102,241,.35)":"rgba(255,255,255,.07)",border:form.role===item[0]?"1.5px solid #818cf8":"1.5px solid rgba(255,255,255,.12)",borderRadius:13,padding:"12px 8px",color:"white",fontWeight:700,fontSize:13,cursor:"pointer"}}>{item[1]}</button>;
-                  })}
-                </div>
-              </div>
-              {signErr&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠ {signErr}</div>}
-              <button onClick={signup} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#10b981,#059669)",color:"white",border:"none",borderRadius:14,padding:15,fontSize:15,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                {loading?<Spinner size={18} label="가입 중..."/>:"회원가입 완료 ✓"}
+              {demoErr&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"9px 14px",marginBottom:10,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠ {demoErr}</div>}
+              <button onClick={demoLogin} disabled={demoLoading||!demoId||!demoPw}
+                style={{width:"100%",background:(demoLoading||!demoId||!demoPw)?"rgba(255,255,255,.09)":"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:13,padding:13,fontSize:14,fontWeight:800,cursor:(demoLoading||!demoId||!demoPw)?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                {demoLoading?<Spinner size={16} label="로그인 중..."/>:"데모 로그인 →"}
               </button>
             </div>
-          )
-        )}
-        </div>{/* 폼 카드 닫기 */}
+          )}
+        </div>
+
         <p style={{color:"rgba(255,255,255,.18)",fontSize:11,marginTop:16,textAlign:"center"}}>데모 비밀번호: 선생님 1234 · 관리자 0000</p>
-      </div>{/* 메인 컨테이너 닫기 */}
+      </div>
     </div>
   );
 }
+
 
 // ── 입실 확인 페이지 (/checkin?id=...) ───
 function CheckInPage() {
