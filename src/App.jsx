@@ -579,6 +579,72 @@ export default function App() {
   var [userModal,setUserModal]         = useState(false);
   var [statsView,setStatsView]         = useState(false);
   var [adminTab,setAdminTab]           = useState("approval");
+  var [profileModal,setProfileModal]   = useState(null); // 최초 구글 로그인 시 프로필 입력
+  var [profileForm,setProfileForm]     = useState({name:"",subject:"",role:"teacher"});
+  var [profileErr,setProfileErr]       = useState("");
+  var [profileLoading,setProfileLoading] = useState(false);
+
+  // ── Google OAuth 콜백 처리 ──
+  useEffect(function(){
+    // URL에 access_token 또는 code가 있으면 구글 로그인 완료
+    var hash = window.location.hash;
+    var params = new URLSearchParams(window.location.search);
+    var accessToken = null;
+
+    if(hash && hash.includes("access_token")) {
+      var hashParams = new URLSearchParams(hash.replace("#",""));
+      accessToken = hashParams.get("access_token");
+    }
+
+    if(!accessToken) return;
+
+    // URL 정리
+    window.history.replaceState({}, document.title, "/");
+
+    // Supabase에서 사용자 정보 가져오기
+    fetch(SUPABASE_URL+"/auth/v1/user", {
+      headers: { "apikey":SUPABASE_KEY, "Authorization":"Bearer "+accessToken }
+    }).then(function(r){ return r.json(); })
+      .then(function(authUser){
+        if(!authUser || !authUser.email) return;
+        var email = authUser.email;
+        var googleName = (authUser.user_metadata && authUser.user_metadata.full_name) || email.split("@")[0];
+
+        // users 테이블에서 이메일로 조회
+        sb.get("users","select=*&email=eq."+encodeURIComponent(email))
+          .then(function(rows){
+            if(rows && rows.length > 0){
+              // 기존 사용자 → 바로 로그인
+              setUser(rows[0]);
+            } else {
+              // 신규 사용자 → 프로필 입력 모달
+              setProfileModal({ email:email, googleName:googleName, accessToken:accessToken });
+              setProfileForm({ name:googleName, subject:"", role:"teacher" });
+            }
+          }).catch(function(e){ console.error("사용자 조회 오류:",e); });
+      }).catch(function(e){ console.error("구글 사용자 정보 오류:",e); });
+  }, []);
+
+  // 최초 구글 로그인 프로필 저장
+  function saveProfile(){
+    if(!profileForm.name||!profileForm.name.trim()) return setProfileErr("이름을 입력해주세요.");
+    if(!profileForm.subject||!profileForm.subject.trim()) return setProfileErr("담당 과목을 입력해주세요.");
+    setProfileLoading(true);
+    var loginId = profileModal.email.split("@")[0]+"_g";
+    sb.post("users",{
+      login_id: loginId,
+      password: "",
+      name: profileForm.name.trim(),
+      role: profileForm.role,
+      subject: profileForm.subject.trim(),
+      email: profileModal.email,
+      avatar: profileForm.role==="admin"?"🧑":"👩",
+    }).then(function(rows){
+      var u = (rows&&rows[0]) || { login_id:loginId, name:profileForm.name.trim(), role:profileForm.role, subject:profileForm.subject.trim(), email:profileModal.email, avatar:profileForm.role==="admin"?"🧑":"👩" };
+      setProfileModal(null);
+      setUser(u);
+    }).catch(function(e){ setProfileErr("저장 오류: "+e.message); setProfileLoading(false); });
+  }
 
   // ── DB에서 데이터 불러오기 ──
   function loadAll(){
@@ -620,6 +686,46 @@ export default function App() {
     onLogin={function(u){ setUser(u); }}
     onRegister={function(a){ console.log("가입됨",a); }}
   />;
+
+  // ── 최초 구글 로그인 프로필 설정 모달 ──
+  if(profileModal) return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(145deg,#0f0c29,#302b63,#24243e)",display:"flex",alignItems:"center",justifyContent:"center",padding:"28px 20px",fontFamily:"sans-serif"}}>
+      <style>{CSS}</style>
+      <div style={{width:"100%",maxWidth:380,background:"rgba(255,255,255,.08)",backdropFilter:"blur(24px)",border:"1px solid rgba(255,255,255,.15)",borderRadius:24,padding:"32px 24px",animation:"popIn .3s ease"}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{width:60,height:60,borderRadius:18,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 12px"}}>👋</div>
+          <h2 style={{color:"white",fontSize:20,fontWeight:900,margin:"0 0 6px"}}>처음 오셨군요!</h2>
+          <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>{profileModal.email}</p>
+        </div>
+        {[
+          {l:"이름",k:"name",ph:"홍길동",type:"text"},
+          {l:"담당 과목",k:"subject",ph:"예: 정보AI, 과학",type:"text"},
+        ].map(function(f){
+          return <div key={f.k} style={{marginBottom:14}}>
+            <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:6}}>{f.l}</label>
+            <input type={f.type} value={profileForm[f.k]||""} onChange={function(e){ var k=f.k; setProfileForm(function(v){ var n=Object.assign({},v); n[k]=e.target.value; return n; }); setProfileErr(""); }}
+              placeholder={f.ph} style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,.08)",border:"1.5px solid rgba(255,255,255,.14)",borderRadius:13,padding:"13px 16px",color:"white",fontSize:14,fontFamily:"sans-serif"}}/>
+          </div>;
+        })}
+        <div style={{marginBottom:20}}>
+          <label style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:700,display:"block",marginBottom:8}}>역할</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
+            {[["teacher","선생님"],["admin","관리자"]].map(function(item){
+              return <button key={item[0]} onClick={function(){ setProfileForm(function(v){ return Object.assign({},v,{role:item[0]}); }); }}
+                style={{background:profileForm.role===item[0]?"rgba(99,102,241,.4)":"rgba(255,255,255,.07)",border:profileForm.role===item[0]?"1.5px solid #818cf8":"1.5px solid rgba(255,255,255,.12)",borderRadius:13,padding:"13px 8px",color:"white",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                {item[1]}
+              </button>;
+            })}
+          </div>
+        </div>
+        {profileErr&&<div style={{background:"rgba(239,68,68,.14)",border:"1px solid rgba(239,68,68,.32)",borderRadius:11,padding:"10px 14px",marginBottom:14,color:"#fca5a5",fontSize:12,fontWeight:600,textAlign:"center"}}>⚠ {profileErr}</div>}
+        <button onClick={saveProfile} disabled={profileLoading}
+          style={{width:"100%",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"white",border:"none",borderRadius:14,padding:15,fontSize:15,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          {profileLoading?<Spinner size={18} label="저장 중..."/>:"시작하기 →"}
+        </button>
+      </div>
+    </div>
+  );
 
   function logout(){ savedSession=null; setUser(null); setTab("home"); }
   function notify(msg,type){ setToast({msg:msg,type:type||"ok"}); setTimeout(function(){ setToast(null); },2800); }
